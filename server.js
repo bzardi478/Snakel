@@ -1,231 +1,189 @@
-// script.js (Client-side)
+// server.js
 
-const socket = io("wss://snakel.onrender.com"); // Replace with your server URL
+require('dotenv').config();
+const express = require('express');
+const { createServer } = require('node:http');
+const { Server } = require('socket.io');
+const path = require('path');
 
-let playerId;
-let otherPlayers = {};
-let food = [];
-let connectionEstablished = false; // Add connection status variable
+const app = express();
+const httpServer = createServer(app);
 
-socket.on('connect', () => {
-  console.log('Socket.IO connected:', socket.id);
-  updateStatus('Connected ✅', 'lightgreen');
-  connectionEstablished = true; // Set connection status to true
-  // Register the player with the server
-  socket.emit('registerPlayer', {
-    // Include any necessary player data
-  }, (response) => {
-    if (response.success) {
-      playerId = response.playerId;
-      console.log('Player ID:', playerId);
-      // Initialize game with response data
-      food = response.initialFood;
-      otherPlayers = response.otherPlayers.reduce((acc, player) => {
-        if (player.id !== playerId) {
-          acc[player.id] = player.position;
+// Initialize Socket.IO
+const io = new Server(httpServer, {
+    cors: {
+        origin: [
+            "https://snakel.firebaseapp.com",
+            "https://snake1.onrender.com",
+            "http://localhost:3000",
+            "http://127.0.0.1:5500"
+        ],
+        methods: ["GET", "POST"],
+        credentials: true
+    },
+    transports: ['websocket'],
+    pingInterval: 25000,
+    pingTimeout: 60000,
+    cookie: false,
+    serveClient: false,
+    allowEIO3: true // Compatibility with older clients
+});
+
+// Middleware
+app.use(express.json());
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Health Check Endpoint
+app.get('/health', (req, res) => {
+    const status = {
+        status: 'healthy',
+        timestamp: Date.now(),
+        players: gameState.players.size,
+        uptime: process.uptime(),
+        memory: process.memoryUsage()
+    };
+    res.status(200).json(status);
+});
+
+// Serve Frontend
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// Game State Management
+const gameState = {
+    players: new Map(),
+    foods: generateInitialFood(20),
+    lastUpdate: Date.now()
+};
+
+function generateInitialFood(count) {
+    const foods = [];
+    for (let i = 0; i < count; i++) {
+        foods.push({
+            x: Math.floor(Math.random() * 1000),
+            y: Math.floor(Math.random() * 800),
+            id: `food_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+        });
+    }
+    return foods;
+}
+
+// Connection Management
+io.on('connection', (socket) => {
+    console.log(`Client connected: ${socket.id}`);
+
+    // Player Initialization
+    socket.on('registerPlayer', (playerData, callback) => {
+        try {
+            const playerId = `player_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+            const player = {
+                ...playerData,
+                id: playerId,
+                position: { x: 400, y: 300 },
+                score: 0,
+                lastActive: Date.now()
+            };
+
+            gameState.players.set(socket.id, player);
+
+            callback({
+                success: true,
+                playerId,
+                initialFood: gameState.foods,
+                otherPlayers: Array.from(gameState.players.values())
+            });
+
+            socket.broadcast.emit('newPlayer', player);
+
+        } catch (error) {
+            console.error('Registration error:', error);
+            callback({ success: false, error: error.message });
         }
-        return acc;
-      }, {});
-      gamePaused = false; // Start the game when registration is successful.
-      draw();
-    } else {
-      console.error('Registration failed:', response.error);
-    }
-  });
-});
-
-socket.on('disconnect', () => {
-  console.log('Socket.IO disconnected');
-  updateStatus('Disconnected ❌', 'red');
-  connectionEstablished = false; //Reset connection status.
-});
-
-socket.on('playerMoved', (data) => {
-  if (data.playerId !== playerId) {
-    otherPlayers[data.playerId] = data.position;
-  }
-});
-
-socket.on('newPlayer', (player) => {
-  if (player.id !== playerId) {
-    otherPlayers[player.id] = player.position;
-  }
-});
-
-socket.on('playerDisconnected', (playerId) => {
-  delete otherPlayers[playerId];
-});
-
-socket.on('foodUpdate', (data) => {
-  if (data.removed) {
-    food = food.filter(f => f.id !== data.removed);
-  }
-  if (data.added) {
-    food.push(data.added);
-  }
-});
-
-socket.on('serverShutdown', () => {
-  console.log("Server is shutting down.")
-  updateStatus('Server Shutdown', 'red')
-  connectionEstablished = false; //Reset connection status.
-});
-
-function updateStatus(text, color) {
-  const status = document.getElementById('connection-status');
-  if (status) {
-    status.textContent = text;
-    status.style.color = color;
-  }
-}
-
-// ======================
-// Game Initialization
-// ======================
-
-// Game State Variables
-const canvas = document.getElementById("game");
-const ctx = canvas.getContext("2d");
-let box = 20;
-let snake = [{ x: 400, y: 300 }];
-let score = 0;
-let snakeLength = 3;
-let gamePaused = true; // Game starts paused, will start when player gets id from server.
-let gameOver = false;
-let velocityX = 0;
-let velocityY = 0;
-let lastNonZeroVelocityX = 0;
-let lastNonZeroVelocityY = 0;
-let velocity = 10;
-let offsetX = 0;
-let offsetY = 0;
-let mouseX = canvas.width / 2;
-let mouseY = canvas.height / 2;
-
-// ======================
-// Core Game Functions
-// ======================
-function resizeCanvas() {
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
-}
-
-function drawOtherPlayers() {
-  ctx.fillStyle = 'rgba(0, 100, 255, 0.7)';
-  for (const id in otherPlayers) {
-    const player = otherPlayers[id];
-    ctx.beginPath();
-    ctx.arc(player.x, player.y, box / 2, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Draw player ID
-    ctx.fillStyle = 'white';
-    ctx.font = '10px Arial';
-    ctx.fillText(id.slice(-4), player.x - 10, player.y - 15);
-    ctx.fillStyle = 'rgba(0, 100, 255, 0.7)';
-  }
-}
-
-function draw() {
-  if (!playerId) {
-    if (connectionEstablished){
-      ctx.fillStyle = "white";
-      ctx.font = "20px Arial";
-      ctx.fillText("Registering player...", 50, 50);
-      requestAnimationFrame(draw);
-      return;
-    }
-    ctx.fillStyle = "white";
-    ctx.font = "20px Arial";
-    ctx.fillText("Connecting to server...", 50, 50);
-    requestAnimationFrame(draw);
-    return;
-  }
-
-  if (!gamePaused && !gameOver) {
-    // Clear canvas
-    ctx.fillStyle = "black";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    // Update snake position
-    const head = snake[0];
-    const dx = mouseX - head.x;
-    const dy = mouseY - head.y;
-    const magnitude = Math.sqrt(dx * dx + dy * dy);
-
-    if (magnitude > 0.1) {
-      velocityX = (dx / magnitude) * velocity;
-      velocityY = (dy / magnitude) * velocity;
-      lastNonZeroVelocityX = velocityX;
-      lastNonZeroVelocityY = velocityY;
-    } else {
-      velocityX = lastNonZeroVelocityX;
-      velocityY = lastNonZeroVelocityY;
-    }
-
-    head.x += velocityX;
-    head.y += velocityY;
-
-    // Send position update
-    socket.emit('playerMove', { x: head.x, y: head.y });
-
-    // Draw game elements
-    ctx.save();
-    ctx.translate(-offsetX, -offsetY);
-
-    // Draw food
-    ctx.fillStyle = "red";
-    food.forEach(f => ctx.fillRect(f.x, f.y, box, box));
-
-    // Draw snake
-    snake.forEach((segment, i) => {
-      ctx.fillStyle = i === 0 ? "#00ff88" : "limegreen";
-      ctx.fillRect(segment.x - 10, segment.y - 10, box, box);
     });
 
-    ctx.restore();
-    requestAnimationFrame(draw);
-  }
+    // Movement Updates
+    socket.on('playerMove', (movement) => {
+        const player = gameState.players.get(socket.id);
+        if (player) {
+            player.position = movement;
+            player.lastActive = Date.now();
+            socket.broadcast.emit('playerMoved', {
+                playerId: player.id,
+                position: movement
+            });
+        }
+    });
 
-  drawOtherPlayers();
-}
+    // Food Collection
+    socket.on('collectFood', (foodId) => {
+        const player = gameState.players.get(socket.id);
+        if (player) {
+            player.score += 10;
+            gameState.foods = gameState.foods.filter(food => food.id !== foodId);
 
-// ======================
-// Event Listeners
-// ======================
-canvas.addEventListener("click", () => {
-  canvas.requestPointerLock().catch(e => console.log("Pointer lock error:", e));
+            // Add new food
+            gameState.foods.push({
+                x: Math.floor(Math.random() * 1000),
+                y: Math.floor(Math.random() * 800),
+                id: `food_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+            });
+
+            io.emit('foodUpdate', {
+                removed: foodId,
+                added: gameState.foods[gameState.foods.length - 1]
+            });
+        }
+    });
+
+    // Disconnection Handling
+    socket.on('disconnect', () => {
+        const player = gameState.players.get(socket.id);
+        if (player) {
+            gameState.players.delete(socket.id);
+            io.emit('playerDisconnected', player.id);
+            console.log(`Player disconnected: ${player.id}`);
+        }
+    });
+
+    // Error Handling
+    socket.on('error', (error) => {
+        console.error(`Socket error (${socket.id}):`, error);
+    });
 });
 
-document.addEventListener("mousemove", (e) => {
-  if (document.pointerLockElement === canvas) {
-    mouseX += e.movementX;
-    mouseY += e.movementY;
-  }
+// Periodic Cleanup
+setInterval(() => {
+    const now = Date.now();
+    const inactivePlayers = Array.from(gameState.players.entries())
+        .filter(([_, player]) => now - player.lastActive > 30000); // 30s inactivity
+
+    inactivePlayers.forEach(([socketId, player]) => {
+        gameState.players.delete(socketId);
+        io.emit('playerDisconnected', player.id);
+        console.log(`Removed inactive player: ${player.id}`);
+    });
+}, 60000); // Run every minute
+
+// Server Startup
+const PORT = process.env.PORT || 10000;
+httpServer.listen(PORT, '0.0.0.0', () => {
+    console.log(`Server running on port ${PORT}`);
+    console.log(`WebSocket endpoint: ws://localhost:${PORT}`);
 });
 
-window.addEventListener("resize", resizeCanvas);
+// Graceful Shutdown
+process.on('SIGTERM', () => {
+    console.log('Shutting down gracefully...');
 
-// Assuming your start button has the ID 'startButton'
-const startButton = document.getElementById('startButton');
+    // Notify all clients
+    io.emit('serverShutdown');
 
-if (startButton) {
-  startButton.addEventListener('click', () => {
-    console.log('Start button clicked!');
-    // The game will start when the server responds with the player ID.
-    if (!connectionEstablished){
-      console.log('Connection is not established');
-      return;
-    }
-    if (playerId) {
-      gamePaused = false;
-      draw();
-    }
-  });
-} else {
-  console.error('Start button not found!');
-}
-
-// Initialize game
-resizeCanvas();
-draw();
+    // Close connections
+    io.close(() => {
+        httpServer.close(() => {
+            console.log('Server stopped');
+            process.exit(0);
+        });
+    });
+});
