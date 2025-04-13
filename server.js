@@ -2,12 +2,11 @@ require('dotenv').config();
 const express = require('express');
 const { createServer } = require('node:http');
 const { Server } = require('socket.io');
-const { instrument } = require('@socket.io/admin-ui');
 
 const app = express();
 const httpServer = createServer(app);
 
-// Enhanced production configuration
+// WebSocket Configuration
 const io = new Server(httpServer, {
   cors: {
     origin: [
@@ -25,12 +24,6 @@ const io = new Server(httpServer, {
   cookie: false
 });
 
-// Socket.io Admin UI (optional)
-instrument(io, {
-  auth: false,
-  mode: "development"
-});
-
 // Middleware
 app.use(express.json());
 app.use((req, res, next) => {
@@ -38,7 +31,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// Health endpoints
+// Health Check Endpoint
 app.get('/health', (req, res) => {
   res.status(200).json({
     status: 'healthy',
@@ -47,22 +40,23 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Serve Frontend
 app.get('/', (req, res) => {
   res.sendFile(__dirname + '/index.html');
 });
 
-// Game state management
+// Game State
 const gameState = {
   players: new Map(),
   foods: [],
   lastUpdate: Date.now()
 };
 
-// Socket.io events
+// Socket.IO Events
 io.on('connection', (socket) => {
   console.log(`New connection: ${socket.id}`);
 
-  // Player initialization
+  // Player Registration
   socket.on('registerPlayer', (playerData, callback) => {
     const playerId = `player_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
     gameState.players.set(socket.id, { ...playerData, id: playerId });
@@ -70,7 +64,7 @@ io.on('connection', (socket) => {
     io.emit('playerJoined', playerId);
   });
 
-  // Movement handling
+  // Movement Handling
   socket.on('playerMove', (movementData) => {
     if (gameState.players.has(socket.id)) {
       gameState.players.get(socket.id).position = movementData;
@@ -78,7 +72,7 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Disconnection handling
+  // Disconnection Handling
   socket.on('disconnect', () => {
     if (gameState.players.has(socket.id)) {
       const playerId = gameState.players.get(socket.id).id;
@@ -87,20 +81,19 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Error handling
+  // Error Handling
   socket.on('error', (error) => {
     console.error(`Socket Error (${socket.id}):`, error);
   });
 });
 
-// Server startup
+// Server Startup
 const PORT = process.env.PORT || 8080;
 httpServer.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`);
-  console.log(`WebSocket Admin UI: http://localhost:${PORT}/admin`);
 });
 
-// Production optimizations
+// Graceful Shutdown
 process.on('SIGTERM', () => {
   console.log('SIGTERM received. Closing server...');
   io.close(() => {
