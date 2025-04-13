@@ -1,4 +1,4 @@
-// script.js
+// script.js (Client-side)
 
 const socket = io("wss://snakel.onrender.com"); // Replace with your server URL
 
@@ -126,7 +126,7 @@ function drawOtherPlayers() {
   }
 }
 
-export function draw() {
+function draw() {
   if (!playerId) {
     if (connectionEstablished){
       ctx.fillStyle = "white";
