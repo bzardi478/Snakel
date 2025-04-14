@@ -1,3 +1,5 @@
+// server.js
+
 require('dotenv').config();
 const express = require('express');
 const { createServer } = require('node:http');
@@ -28,37 +30,40 @@ const io = new Server(httpServer, {
     allowEIO3: true // Compatibility with older clients
 });
 
-// Initialize Firebase Admin SDK (Ensure this matches your previous setup)
-let serviceAccount = null;
-if (process.env.FIREBASE_SERVICE_ACCOUNT) {
-    try {
-        serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-    } catch (error) {
-        console.error('Error parsing FIREBASE_SERVICE_ACCOUNT:', error);
-        process.exit(1);
+// Firebase Admin SDK initialization (keep this at the top)
+async function initializeAdmin() { // Make this an async function
+    let serviceAccount = null;
+    if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+        try {
+            serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+        } catch (error) {
+            console.error('Error parsing FIREBASE_SERVICE_ACCOUNT:', error);
+            process.exit(1);
+        }
+    } else {
+        try {
+            serviceAccount = require('./serviceAccountKey.json');
+        } catch (error) {
+            console.error('Error loading ./serviceAccountKey.json:', error);
+        }
     }
-} else {
-    try {
-        serviceAccount = require('./serviceAccountKey.json');
-    } catch (error) {
-        console.error('Error loading ./serviceAccountKey.json:', error);
-    }
-}
 
-if (serviceAccount) {
-    try {
-        admin.initializeApp({
-            credential: admin.credential.cert(serviceAccount)
-        });
-        console.log('Firebase Admin SDK initialized successfully.');
-    } catch (error) {
-        console.error('Error initializing Firebase Admin SDK:', error);
-        console.error(error);
+    if (serviceAccount) {
+        try {
+            await admin.initializeApp({ // Await the initialization
+                credential: admin.credential.cert(serviceAccount)
+            });
+            console.log('Firebase Admin SDK initialized successfully.');
+            console.log('Testing Firestore connection:', admin.firestore); // Add this log
+        } catch (error) {
+            console.error('Error initializing Firebase Admin SDK:', error);
+            console.error(error);
+            process.exit(1);
+        }
+    } else {
+        console.error('Firebase Admin SDK could not initialize. Check service account configuration.');
         process.exit(1);
     }
-} else {
-    console.error('Firebase Admin SDK could not initialize. Check service account configuration.');
-    process.exit(1);
 }
 
 // Middleware
@@ -107,15 +112,15 @@ io.on('connection', (socket) => {
 
     // Authentication Event Listeners
     socket.on('register', (data, callback) => {
-        console.log('Registration request received:', data); // Log the data received
-        auth.registerUser(admin, data.username, data.password, (result) => { // Pass 'admin'
-            console.log('Registration result sent to client:', result); // Log the result before sending
+        console.log('Registration request received:', data);
+        auth.registerUser(admin, data.username, data.password, (result) => {
+            console.log('Registration result sent to client:', result);
             callback(result);
         });
     });
 
     socket.on('login', (data, callback) => {
-        auth.loginUser(admin, data.username, data.password, callback); // Pass 'admin'
+        auth.loginUser(admin, data.username, data.password, callback);
     });
 
     // Player Initialization
@@ -209,12 +214,16 @@ setInterval(() => {
     });
 }, 60000); // Run every minute
 
-// Server Startup
+// Server Startup (ONLY after Firebase Admin SDK is initialized)
 const PORT = process.env.PORT || 10000;
-httpServer.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server running on port ${PORT}`);
-    console.log(`WebSocket endpoint: ws://localhost:${PORT}`);
-});
+async function startServer() {
+    await initializeAdmin(); // Wait for initialization to complete
+    httpServer.listen(PORT, '0.0.0.0', () => {
+        console.log(`Server running on port ${PORT}`);
+        console.log(`WebSocket endpoint: ws://localhost:${PORT}`);
+    });
+}
+startServer();
 
 // Graceful Shutdown
 process.on('SIGTERM', () => {
