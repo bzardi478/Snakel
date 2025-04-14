@@ -1,7 +1,7 @@
 // auth.js
 
 const admin = require('firebase-admin');
-const bcrypt = require('bcrypy');
+const bcrypt = require('bcrypt');
 
 const serviceAccountString = process.env.FIREBASE_SERVICE_ACCOUNT;
 const serviceAccount = JSON.parse(serviceAccountString);
