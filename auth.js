@@ -1,7 +1,9 @@
+// auth.js
+
 const admin = require('firebase-admin');
 const bcrypt = require('bcrypt');
 
-let serviceAccount;
+let serviceAccount = null; // Initialize as null
 
 if (process.env.FIREBASE_SERVICE_ACCOUNT) {
     try {
@@ -19,9 +21,17 @@ if (process.env.FIREBASE_SERVICE_ACCOUNT) {
 }
 
 if (serviceAccount) {
-    admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount)
-    });
+    try {
+        admin.initializeApp({
+            credential: admin.credential.cert(serviceAccount)
+        });
+        console.log('Firebase Admin SDK initialized successfully.'); // Add this log
+    } catch (error) {
+        console.error('Error initializing Firebase Admin SDK:', error);
+        console.error(error); // Log the full error
+        // You might want to handle this more gracefully, like disabling authentication
+        // features or exiting the process. For now, we'll let it continue.
+    }
 } else {
     console.error('Firebase Admin SDK could not initialize. Check service account configuration.');
 }
