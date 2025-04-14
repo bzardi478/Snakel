@@ -3,7 +3,6 @@
 const admin = require('firebase-admin');
 const bcrypt = require('bcrypt');
 
-// Option 2: Using environment variables (more secure)
 const serviceAccountString = process.env.FIREBASE_SERVICE_ACCOUNT;
 const serviceAccount = JSON.parse(serviceAccountString);
 
@@ -16,6 +15,12 @@ const firestore = admin.firestore();
 async function registerUser(username, password, callback) {
     try {
         const hashedPassword = await bcrypt.hash(password, 10);
+
+        // Check if username (as document ID) already exists
+        const userDoc = await firestore.collection('users').doc(username).get();
+        if (userDoc.exists) {
+            return callback({ success: false, error: 'Username already registered' });
+        }
 
         // Store user data in Firestore
         await firestore.collection('users').doc(username).set({
