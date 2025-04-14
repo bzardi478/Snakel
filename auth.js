@@ -1,12 +1,10 @@
 // auth.js
 
 const bcrypt = require('bcrypt');
-
-// No need to require('firebase-admin') here anymore
-
+const admin = require('firebase-admin');
 module.exports = {
-    registerUser: async function (admin, username, password, callback) { // Accept admin
-        const firestore = admin.firestore(); // Use the passed admin object
+    registerUser: async function (admin, username, password, callback) {
+        const firestore = admin.firestore(); // Ensure you're using the passed 'admin' object
         console.log('registerUser called with:', username, password);
         try {
             console.log('TRY BLOCK START');
@@ -37,8 +35,8 @@ module.exports = {
         }
     },
 
-    loginUser: async function (admin, username, password, callback) { // Accept admin
-        const firestore = admin.firestore(); // Use the passed admin object
+    loginUser: async function (admin, username, password, callback) {
+        const firestore = admin.firestore(); // Ensure you're using the passed 'admin' object
         try {
             const userDoc = await firestore.collection('users').doc(username).get();
             const userData = userDoc.data();
