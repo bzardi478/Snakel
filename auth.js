@@ -8,7 +8,6 @@ if (process.env.FIREBASE_SERVICE_ACCOUNT) {
         serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
     } catch (error) {
         console.error('Error parsing FIREBASE_SERVICE_ACCOUNT:', error);
-        // Handle this error appropriately, maybe exit the process or use a default
         process.exit(1);
     }
 } else {
@@ -16,7 +15,6 @@ if (process.env.FIREBASE_SERVICE_ACCOUNT) {
         serviceAccount = require('./serviceAccountKey.json');
     } catch (error) {
         console.error('Error loading ./serviceAccountKey.json:', error);
-        // Handle this error appropriately for local development
     }
 }
 
@@ -26,31 +24,36 @@ if (serviceAccount) {
     });
 } else {
     console.error('Firebase Admin SDK could not initialize. Check service account configuration.');
-    // Handle the case where Firebase cannot be initialized
-    // You might want to disable authentication-related routes or features
 }
 
 const firestore = admin.firestore();
 
 async function registerUser(username, password, callback) {
+    console.log('registerUser called with:', username, password); // Log when the function is called
     try {
+        console.log('Hashing password...'); // Log before hashing
         const hashedPassword = await bcrypt.hash(password, 10);
+        console.log('Password hashed:', hashedPassword); // Log after hashing
 
-        // Check if username (as document ID) already exists
+        console.log('Checking if username exists:', username); // Log before checking Firestore
         const userDoc = await firestore.collection('users').doc(username).get();
+        console.log('Username check result:', userDoc.exists); // Log the result of the check
         if (userDoc.exists) {
+            console.log('Username already registered - sending error.'); // Log before the callback
             return callback({ success: false, error: 'Username already registered' });
         }
 
-        // Store user data in Firestore
+        console.log('Storing user data:', username); // Log before writing to Firestore
         await firestore.collection('users').doc(username).set({
             password: hashedPassword,
         });
-
+        console.log('User data stored successfully - sending success.'); // Log before the callback
         callback({ success: true, userId: username });
     } catch (error) {
-        console.error('Error registering user:', error);
+        console.error('Error registering user:', error); // Log any errors in the try/catch block
         callback({ success: false, error: 'Registration failed' });
+    } finally {
+        console.log('registerUser finished.'); // Log when the function completes
     }
 }
 
@@ -73,6 +76,8 @@ async function loginUser(username, password, callback) {
     } catch (error) {
         console.error('Error logging in user:', error);
         callback({ success: false, error: 'Login failed' });
+    } finally {
+        console.log('loginUser finished.');
     }
 }
 
