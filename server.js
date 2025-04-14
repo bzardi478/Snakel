@@ -4,6 +4,7 @@ const { createServer } = require('node:http');
 const { Server } = require('socket.io');
 const path = require('path');
 const auth = require('./auth'); // Import auth.js
+const admin = require('firebase-admin'); // Import Firebase Admin SDK
 
 const app = express();
 const httpServer = createServer(app);
@@ -26,6 +27,39 @@ const io = new Server(httpServer, {
     serveClient: false,
     allowEIO3: true // Compatibility with older clients
 });
+
+// Initialize Firebase Admin SDK (Ensure this matches your previous setup)
+let serviceAccount = null;
+if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+    try {
+        serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+    } catch (error) {
+        console.error('Error parsing FIREBASE_SERVICE_ACCOUNT:', error);
+        process.exit(1);
+    }
+} else {
+    try {
+        serviceAccount = require('./serviceAccountKey.json');
+    } catch (error) {
+        console.error('Error loading ./serviceAccountKey.json:', error);
+    }
+}
+
+if (serviceAccount) {
+    try {
+        admin.initializeApp({
+            credential: admin.credential.cert(serviceAccount)
+        });
+        console.log('Firebase Admin SDK initialized successfully.');
+    } catch (error) {
+        console.error('Error initializing Firebase Admin SDK:', error);
+        console.error(error);
+        process.exit(1);
+    }
+} else {
+    console.error('Firebase Admin SDK could not initialize. Check service account configuration.');
+    process.exit(1);
+}
 
 // Middleware
 app.use(express.json());
@@ -74,14 +108,14 @@ io.on('connection', (socket) => {
     // Authentication Event Listeners
     socket.on('register', (data, callback) => {
         console.log('Registration request received:', data); // Log the data received
-        auth.registerUser(data.username, data.password, (result) => {
+        auth.registerUser(admin, data.username, data.password, (result) => { // Pass 'admin'
             console.log('Registration result sent to client:', result); // Log the result before sending
             callback(result);
         });
     });
 
     socket.on('login', (data, callback) => {
-        auth.loginUser(data.username, data.password, callback);
+        auth.loginUser(admin, data.username, data.password, callback); // Pass 'admin'
     });
 
     // Player Initialization
