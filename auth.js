@@ -1,41 +1,51 @@
-// auth.js
-import { showLoginRegistration, hideLoginRegistration, displayAuthError, clearAuthError } from './auth_ui.js';
+// auth.js (Server-Side)
 
-export function setupAuth(socket, onAuthSuccess) {
-    const loginForm = document.getElementById('login-form');
-    const registerForm = document.getElementById('register-form');
+const bcrypt = require('bcrypt');
 
-    loginForm.addEventListener('submit', (e) => {
-        e.preventDefault();
-        clearAuthError();
-        const username = loginForm.username.value;
-        const password = loginForm.password.value;
-        socket.emit('login', { username, password }, (response) => {
-            if (response.success) {
-                //  Handle successful login (e.g., store token)
-                hideLoginRegistration();
-                onAuthSuccess(response.userId); //  Callback to handle game start
-            } else {
-                displayAuthError(response.error);
-            }
-        });
-    });
+// In a real application, replace this with a database (e.g., MongoDB, PostgreSQL)
+const users = [];
 
-    registerForm.addEventListener('submit', (e) => {
-        e.preventDefault();
-        clearAuthError();
-        const username = registerForm.username.value;
-        const password = registerForm.password.value;
-        socket.emit('register', { username, password }, (response) => {
-            if (response.success) {
-                // Handle successful registration
-                displayAuthError('Registration successful. You can now log in.');
-                showLoginRegistration(); // Optionally, show login form after registration
-            } else {
-                displayAuthError(response.error);
-            }
-        });
-    });
+async function registerUser(username, password, callback) {
+    const userExists = users.find(user => user.username === username);
+    if (userExists) {
+        return callback({ success: false, error: 'Username already taken' });
+    }
 
-    showLoginRegistration(); // Show auth forms on initial load
+    try {
+        const hashedPassword = await bcrypt.hash(password, 10);
+        const newUser = {
+            id: users.length + 1,
+            username: username,
+            password: hashedPassword,
+        };
+        users.push(newUser);
+        callback({ success: true, userId: newUser.id });
+    } catch (error) {
+        console.error('Error registering user:', error);
+        callback({ success: false, error: 'Registration failed' });
+    }
 }
+
+async function loginUser(username, password, callback) {
+    const user = users.find(user => user.username === username);
+    if (!user) {
+        return callback({ success: false, error: 'Invalid username or password' });
+    }
+
+    try {
+        const passwordMatch = await bcrypt.compare(password, user.password);
+        if (!passwordMatch) {
+            return callback({ success: false, error: 'Invalid username or password' });
+        }
+
+        callback({ success: true, userId: user.id });
+    } catch (error) {
+        console.error('Error logging in user:', error);
+        callback({ success: false, error: 'Login failed' });
+    }
+}
+
+module.exports = {
+    registerUser,
+    loginUser,
+};
