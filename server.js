@@ -32,10 +32,12 @@ const io = new Server(httpServer, {
 
 // Firebase Admin SDK initialization (keep this at the top)
 async function initializeAdmin() { // Make this an async function
+    console.log('Initializing Firebase Admin SDK...');
     let serviceAccount = null;
     if (process.env.FIREBASE_SERVICE_ACCOUNT) {
         try {
             serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+            console.log('Service account loaded from environment variable:', serviceAccount);
         } catch (error) {
             console.error('Error parsing FIREBASE_SERVICE_ACCOUNT:', error);
             process.exit(1);
@@ -43,6 +45,7 @@ async function initializeAdmin() { // Make this an async function
     } else {
         try {
             serviceAccount = require('./serviceAccountKey.json');
+            console.log('Service account loaded from file:', serviceAccount);
         } catch (error) {
             console.error('Error loading ./serviceAccountKey.json:', error);
         }
@@ -55,6 +58,7 @@ async function initializeAdmin() { // Make this an async function
             });
             console.log('Firebase Admin SDK initialized successfully.');
             console.log('Testing Firestore connection:', admin.firestore); // Add this log
+            return admin; // Return the initialized admin object
         } catch (error) {
             console.error('Error initializing Firebase Admin SDK:', error);
             console.error(error);
@@ -64,6 +68,7 @@ async function initializeAdmin() { // Make this an async function
         console.error('Firebase Admin SDK could not initialize. Check service account configuration.');
         process.exit(1);
     }
+    return null; // Return null if initialization fails
 }
 
 // Middleware
@@ -106,14 +111,20 @@ function generateInitialFood(count) {
     return foods;
 }
 
+let firebaseAdminInstance = null;
+
 // Connection Management
 io.on('connection', (socket) => {
     console.log(`Client connected: ${socket.id}`);
 
     // Authentication Event Listeners
-    socket.on('register', (data, callback) => {
+    socket.on('register', async (data, callback) => {
         console.log('Registration request received:', data);
-        auth.registerUser(admin, data.username, data.password, (result) => {
+        if (!firebaseAdminInstance) {
+            console.error('Firebase Admin SDK not initialized for registration.');
+            return callback({ success: false, message: 'Server error: Firebase not initialized.' });
+        }
+        auth.registerUser(firebaseAdminInstance, data.username, data.password, (result) => {
             console.log('Registration result sent to client:', result);
             callback(result);
         });
@@ -217,7 +228,7 @@ setInterval(() => {
 // Server Startup (ONLY after Firebase Admin SDK is initialized)
 const PORT = process.env.PORT || 10000;
 async function startServer() {
-    await initializeAdmin(); // Wait for initialization to complete
+    firebaseAdminInstance = await initializeAdmin(); // Wait for initialization to complete
     httpServer.listen(PORT, '0.0.0.0', () => {
         console.log(`Server running on port ${PORT}`);
         console.log(`WebSocket endpoint: ws://localhost:${PORT}`);
