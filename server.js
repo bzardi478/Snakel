@@ -16,8 +16,7 @@ const httpServer = createServer(app);
 const io = new Server(httpServer, {
  cors: {
  origin: [
- "https://snakel.firebaseapp.com", // Your Firebase hosting URL [cite: 3]
- "https://snake1.onrender.com",
+ "https://snakel.firebaseapp.com", // Your Firebase hosting URL
  "http://localhost:3000",
  "http://127.0.0.1:5500"
  ],
