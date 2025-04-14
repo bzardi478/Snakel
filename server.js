@@ -73,7 +73,11 @@ io.on('connection', (socket) => {
 
     // Authentication Event Listeners
     socket.on('register', (data, callback) => {
-        auth.registerUser(data.username, data.password, callback);
+        console.log('Registration request received:', data); // Log the data received
+        auth.registerUser(data.username, data.password, (result) => {
+            console.log('Registration result sent to client:', result); // Log the result before sending
+            callback(result);
+        });
     });
 
     socket.on('login', (data, callback) => {
