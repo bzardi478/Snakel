@@ -1,14 +1,34 @@
-// auth.js
-
 const admin = require('firebase-admin');
 const bcrypt = require('bcrypt');
 
-const serviceAccountString = process.env.FIREBASE_SERVICE_ACCOUNT;
-const serviceAccount = JSON.parse(serviceAccountString);
+let serviceAccount;
 
-admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount)
-});
+if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+    try {
+        serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+    } catch (error) {
+        console.error('Error parsing FIREBASE_SERVICE_ACCOUNT:', error);
+        // Handle this error appropriately, maybe exit the process or use a default
+        process.exit(1);
+    }
+} else {
+    try {
+        serviceAccount = require('./serviceAccountKey.json');
+    } catch (error) {
+        console.error('Error loading ./serviceAccountKey.json:', error);
+        // Handle this error appropriately for local development
+    }
+}
+
+if (serviceAccount) {
+    admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount)
+    });
+} else {
+    console.error('Firebase Admin SDK could not initialize. Check service account configuration.');
+    // Handle the case where Firebase cannot be initialized
+    // You might want to disable authentication-related routes or features
+}
 
 const firestore = admin.firestore();
 
