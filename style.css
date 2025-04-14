@@ -1,0 +1,118 @@
+body {
+  margin: 0;
+  background: radial-gradient(circle, #1a1a1a 0%, #0d0d0d 100%);
+  font-family: 'Press Start 2P', cursive;
+  color: #fff;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  overflow: hidden;
+  cursor: none; /* Hides the mouse cursor */
+}
+
+.container {
+  text-align: center;
+}
+
+h1 {
+  font-size: 1.5rem;
+  margin-bottom: 10px;
+  color: #00ff88;
+  text-shadow: 0 0 10px #00ff88;
+}
+
+.score {
+  margin-bottom: 10px;
+  font-size: 1rem;
+  color: #fff;
+}
+
+canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: #222;
+  border: 4px solid #00ff88;
+  border-radius: 10px;
+  box-shadow: 0 0 15px #00ff88;
+}
+
+/* Styles for Login Page */
+#home-page {
+  background: rgba(0, 0, 0, 0.8); /* Semi-transparent background */
+  padding: 30px;
+  border-radius: 10px;
+  box-shadow: 0 0 20px rgba(0, 255, 136, 0.5);
+  width: 300px; /* Adjust width as needed */
+}
+
+#home-page h2 {
+  color: #00ff88;
+  margin-bottom: 20px;
+  text-shadow: 0 0 5px #00ff88;
+}
+
+#home-page input[type="email"],
+#home-page input[type="password"] {
+  width: calc(100% - 22px); /* Adjust for padding and border */
+  padding: 10px;
+  margin-bottom: 15px;
+  background: #333;
+  border: 1px solid #555;
+  border-radius: 5px;
+  color: #fff;
+  font-family: 'Press Start 2P', cursive;
+  font-size: 0.8rem;
+}
+
+#home-page button {
+  padding: 10px 20px;
+  background: #00ff88;
+  color: #000;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-family: 'Press Start 2P', cursive;
+  font-size: 0.8rem;
+  transition: background 0.3s ease;
+}
+
+#home-page button:hover {
+  background: #00cc66;
+}
+
+#home-page div {
+  margin-top: 10px;
+  color: #ff6666; /* Error/message color */
+  font-size: 0.8rem;
+}
+
+#home-page #logoutButton, #home-page #start-button {
+  margin-top: 20px;
+  background: #444;
+  color: #fff;
+}
+
+#home-page #logoutButton:hover, #home-page #start-button:hover {
+  background: #555;
+}
+
+#authStatus {
+  margin-top: 10px;
+  color: #fff;
+  font-size: 0.8rem;
+}
+@keyframes floatUp {
+  0% { transform: translateY(0); opacity: 1; }
+  100% { transform: translateY(-20px); opacity: 0; }
+}
+
+.money-feedback {
+  position: absolute;
+  right: 0;
+  font-size: 0.8em;
+  pointer-events: none;
+}
