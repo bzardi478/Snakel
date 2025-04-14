@@ -23,7 +23,7 @@ const io = new Server(httpServer, {
  methods: ["GET", "POST"],
  credentials: true
  },
- transports: ['websocket'],
+ transports: ['websocket','polling'],
  pingInterval: 25000,
  pingTimeout: 60000,
  cookie: false,
