@@ -39,31 +39,33 @@ if (serviceAccount) {
 const firestore = admin.firestore();
 
 async function registerUser(username, password, callback) {
-    console.log('registerUser called with:', username, password); // Log when the function is called
+    console.log('registerUser called with:', username, password);
     try {
-        console.log('Hashing password...'); // Log before hashing
+        console.log('TRY BLOCK START'); // Added log
+        console.log('Hashing password...');
         const hashedPassword = await bcrypt.hash(password, 10);
-        console.log('Password hashed:', hashedPassword); // Log after hashing
-
-        console.log('Checking if username exists:', username); // Log before checking Firestore
+        console.log('Password hashed:', hashedPassword);
+        console.log('Checking if username exists:', username);
         const userDoc = await firestore.collection('users').doc(username).get();
-        console.log('Username check result:', userDoc.exists); // Log the result of the check
+        console.log('Username check result:', userDoc.exists);
         if (userDoc.exists) {
-            console.log('Username already registered - sending error.'); // Log before the callback
+            console.log('Username already registered - sending error.');
             return callback({ success: false, error: 'Username already registered' });
         }
-
-        console.log('Storing user data:', username); // Log before writing to Firestore
+        console.log('Storing user data:', username);
         await firestore.collection('users').doc(username).set({
             password: hashedPassword,
         });
-        console.log('User data stored successfully - sending success.'); // Log before the callback
+        console.log('User data stored successfully - sending success.');
         callback({ success: true, userId: username });
+        console.log('TRY BLOCK END - SUCCESS'); // Added log
     } catch (error) {
-        console.error('Error registering user:', error); // Log any errors in the try/catch block
+        console.error('CATCH BLOCK ENTERED - Error registering user:', error); // Modified log
+        console.error(error); // Log the full error object
         callback({ success: false, error: 'Registration failed' });
+        console.log('CATCH BLOCK END'); // Added log
     } finally {
-        console.log('registerUser finished.'); // Log when the function completes
+        console.log('registerUser finished.');
     }
 }
 
