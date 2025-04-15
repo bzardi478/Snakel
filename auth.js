@@ -1,6 +1,6 @@
 // auth.js
 
-const admin = require('firebase-admin'); // Make sure this is still here at the top
+const admin = require('firebase-admin'); // Ensure this is at the top
 
 function isValidEmail(email) {
     // Basic email validation regex
@@ -20,8 +20,8 @@ async function registerUser(adminInstance, username, password, callback) {
             displayName: username // You can set a display name if needed
         });
 
-        // Send verification email
-        await adminInstance.auth().sendEmailVerification(userRecord.uid);
+        // Send verification email using the directly imported admin
+        await admin.auth().sendEmailVerification(userRecord.uid);
         console.log(`Verification email sent to: ${username}`);
 
         const database = adminInstance.database();
@@ -73,4 +73,4 @@ async function loginUser(adminInstance, username, password, callback) {
     }
 }
 
-module.exports = { registerUser, loginUser };   
+module.exports = { registerUser, loginUser };
