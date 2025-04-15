@@ -1,5 +1,3 @@
-// server.js
-
 require('dotenv').config({ path: '/.env' });
 const express = require('express');
 const { createServer } = require('node:http');
@@ -7,7 +5,8 @@ const { Server } = require('socket.io');
 const path = require('path');
 const auth = require('./auth'); // Import auth.js
 const admin = require('firebase-admin'); // Import Firebase Admin SDK
-const mailgun = require('mailgun-js')({ apiKey: process.env.MAILGUN_API_KEY, domain: process.env.MAILGUN_DOMAIN });
+const sgMail = require('@sendgrid/mail');
+sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
 const app = express();
 const httpServer = createServer(app);
@@ -120,7 +119,7 @@ io.on('connection', (socket) => {
             return callback({ success: false, message: 'Server error: Firebase not initialized.' });
         }
         console.log('firebaseAuthService before auth.registerUser:', firebaseAuthService);
-        auth.registerUser(firebaseAuthService, firebaseAdminInstance.database(), data.username, data.password, mailgun, (result) => { // Pass mailgun instance
+        auth.registerUser(firebaseAuthService, firebaseAdminInstance.database(), data.username, data.password, sgMail, (result) => { // Pass sgMail instance
             console.log('Registration result sent to client:', result);
             callback(result);
         });

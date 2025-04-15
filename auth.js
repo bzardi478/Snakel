@@ -1,14 +1,22 @@
-// auth.js
-
 const admin = require('firebase-admin');
+const nodemailer = require('nodemailer');
+const { v4: uuidv4 } = require('uuid');
+
+// Configure Nodemailer (replace with your email service details)
+const transporter = nodemailer.createTransport({
+    service: 'Gmail', // Or your email service (e.g., 'SMTP', 'Sendgrid')
+    auth: {
+        user: 'your-email@gmail.com', // Your email address
+        pass: 'your-email-password' // Your email password or an app-specific password
+    }
+});
 
 function isValidEmail(email) {
-    // Basic email validation regex
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
 }
 
-async function registerUser(authService, database, username, password, mailgunInstance, callback) {
+async function registerUser(authService, database, username, password, callback) {
     if (!isValidEmail(username)) {
         return callback({ success: false, message: 'Invalid email format.' });
     }
@@ -20,24 +28,26 @@ async function registerUser(authService, database, username, password, mailgunIn
             displayName: username
         });
 
-        const verificationLink = await authService.generateEmailVerificationLink(userRecord.email);
-        console.log('Email Verification Link (Mailgun):', verificationLink);
+        const verificationToken = uuidv4();
+        const verificationLink = `https://yourdomain.com/verify-email?token=${verificationToken}&uid=${userRecord.uid}`; // Replace with your actual domain and verification link endpoint
 
-        const data = {
-            from: 'Your Application <your@yourdomain.com>', // Replace with your sending address
+        // Store the verification token in the database (you'll need to adjust this based on your database structure)
+        const userRef = database.ref(`users/${userRecord.uid}`);
+        await userRef.update({ verificationToken: verificationToken, emailVerified: false });
+
+        const mailOptions = {
+            from: 'your-email@gmail.com', // Your email address
             to: username,
             subject: 'Verify Your Email Address',
             html: `<p>Please click the following link to verify your email address:</p><p><a href="${verificationLink}">${verificationLink}</a></p>`
         };
 
-        mailgunInstance.messages().send(data, (error, body) => {
+        transporter.sendMail(mailOptions, (error, info) => {
             if (error) {
-                console.error('Error sending verification email via Mailgun:', error);
+                console.error('Error sending verification email:', error);
                 callback({ success: false, message: 'Error sending verification email.' });
             } else {
-                console.log('Verification email sent via Mailgun:', body);
-                const userRef = database.ref(`users/${userRecord.uid}`);
-                userRef.set({ username: username, emailVerified: false });
+                console.log('Verification email sent:', info.response);
                 callback({ success: true, message: 'User registered successfully. Please check your email to verify your account.', uid: userRecord.uid });
             }
         });
