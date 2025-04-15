@@ -8,6 +8,8 @@ const path = require('path');
 const auth = require('./auth'); // Import auth.js
 const admin = require('firebase-admin'); // Import Firebase Admin SDK
 
+const admin = require('firebase-admin');
+
 const app = express();
 const httpServer = createServer(app);
 
@@ -51,15 +53,17 @@ async function initializeAdmin() {
 
     if (serviceAccount) {
         try {
-            await admin.initializeApp({
+            console.log('Attempting to initialize Firebase Admin SDK...'); // Added log
+            const adminInstance = admin.initializeApp({
                 credential: admin.credential.cert(serviceAccount),
-                databaseURL: 'https://snakel-default-rtdb.europe-west1.firebasedatabase.app' // CORRECTED URL
+                databaseURL: 'https://snakel-default-rtdb.europe-west1.firebasedatabase.app' // Ensure this is correct
             });
             console.log('Firebase Admin SDK initialized successfully (Realtime Database).');
             console.log('Testing Realtime Database connection:', admin.database());
-            return admin;
+            return adminInstance;
         } catch (error) {
             console.error('Error initializing Firebase Admin SDK:', error);
+            console.error('Initialization Error Details:', error.message); // Added more specific error log
             console.error(error);
             process.exit(1);
         }
@@ -68,7 +72,6 @@ async function initializeAdmin() {
         process.exit(1);
     }
 }
-
 // Middleware
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
