@@ -6,8 +6,8 @@ const { v4: uuidv4 } = require('uuid');
 const transporter = nodemailer.createTransport({
     service: 'Gmail', // Or your email service (e.g., 'SMTP', 'Sendgrid')
     auth: {
-        user: 'your-email@gmail.com', // Your email address
-        pass: 'your-email-password' // Your email password or an app-specific password
+        user: 'Mzardi07@gmail.com', // Your email address
+        pass: 'frsk sfll tors aykf' // Your email password or an app-specific password
     }
 });
 
@@ -36,7 +36,7 @@ async function registerUser(authService, database, username, password, callback)
         await userRef.update({ verificationToken: verificationToken, emailVerified: false });
 
         const mailOptions = {
-            from: 'your-email@gmail.com', // Your email address
+            from: 'mzardi07@gmail.com', // Your email address
             to: username,
             subject: 'Verify Your Email Address',
             html: `<p>Please click the following link to verify your email address:</p><p><a href="${verificationLink}">${verificationLink}</a></p>`
