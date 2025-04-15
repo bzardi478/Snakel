@@ -80,12 +80,13 @@ app.get('/', (req, res) => {
 // Email Verification Route
 app.get('/verify-email', async (req, res) => {
     console.log('Verification link visited!');
-    const { token, oobCode, apiKey, mode, continueUrl, lang } = req.query; // Common Firebase verification link parameters
+    console.log('Verification link query:', req.query); // Log all query parameters
+    const { token, oobCode } = req.query;
     const verificationToken = token || oobCode;
 
-    if (!verificationToken || !apiKey || mode !== 'verifyEmail' || !continueUrl) {
-        console.error('Invalid verification link parameters:', req.query);
-        return res.status(400).send('Invalid verification link.');
+    if (!verificationToken) {
+        console.error('No verification token found in the link.');
+        return res.status(400).send('Invalid verification link: Missing token.');
     }
 
     try {
@@ -94,23 +95,13 @@ app.get('/verify-email', async (req, res) => {
 
         await firebaseAdminInstance.auth().updateUser(uid, { emailVerified: true });
 
-        // Optionally update your Realtime Database
         const userRef = firebaseAdminInstance.database().ref(`users/${uid}`);
         await userRef.update({ emailVerified: true, verificationToken: null });
 
         res.send('Email verified successfully! You can now log in.');
     } catch (error) {
         console.error('Error verifying email:', error);
-        let errorMessage = 'An error occurred while verifying your email.';
-        switch (error.code) {
-            case 'auth/invalid-action-code':
-            case 'auth/expired-action-code':
-            case 'auth/user-disabled':
-            case 'auth/user-not-found':
-                errorMessage = 'Invalid or expired verification link.';
-                break;
-        }
-        res.status(400).send(errorMessage);
+        res.status(400).send(`Invalid verification link: ${error.message}`); // Send the Firebase error message back
     }
 });
 
