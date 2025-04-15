@@ -5,8 +5,6 @@ const { Server } = require('socket.io');
 const path = require('path');
 const auth = require('./auth'); // Import auth.js
 const admin = require('firebase-admin'); // Import Firebase Admin SDK
-const sgMail = require('@sendgrid/mail');
-sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
 const app = express();
 const httpServer = createServer(app);
@@ -77,38 +75,7 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Email Verification Route
-app.get('/verify-email', async (req, res) => {
-    console.log('Verification link visited!');
-    console.log('Verification link query:', req.query);
-    const { token, oobCode } = req.query;
-    const verificationToken = token || oobCode;
-
-    if (!verificationToken) {
-        console.error('No verification token found in the link.');
-        return res.status(400).send('Invalid verification link: Missing token.');
-    }
-
-    if (!firebaseAuthService) {
-        console.error('Firebase AuthService is not initialized.');
-        return res.status(500).send('Server error: Firebase Auth not initialized.');
-    }
-
-    try {
-        const actionCodeResult = await firebaseAuthService.checkActionCode(verificationToken);
-        const uid = actionCodeResult.data.uid;
-
-        await firebaseAuthService.updateUser(uid, { emailVerified: true });
-
-        const userRef = firebaseAdminInstance.database().ref(`users/${uid}`);
-        await userRef.update({ emailVerified: true, verificationToken: null });
-
-        res.send('Email verified successfully! You can now log in.');
-    } catch (error) {
-        console.error('Error verifying email:', error);
-        res.status(400).send(`Invalid verification link: ${error.message}`);
-    }
-});
+// REMOVED: Email Verification Route
 
 // Game State Management
 const gameState = {
@@ -139,7 +106,7 @@ io.on('connection', (socket) => {
             console.error('Firebase Admin SDK or Auth service not initialized for registration.');
             return callback({ success: false, message: 'Server error: Firebase not initialized.' });
         }
-        auth.registerUser(firebaseAuthService, firebaseAdminInstance.database(), data.username, data.password, sgMail, (result) => { // Pass sgMail instance
+        auth.registerUser(firebaseAuthService, firebaseAdminInstance.database(), data.username, data.password, null, (result) => { // Pass null for sgMail
             callback(result);
         });
     });
@@ -153,11 +120,13 @@ io.on('connection', (socket) => {
         }
         try {
             const userRecord = await firebaseAuthService.getUserByEmail(loginData.username);
-            if (userRecord) {
+            if (userRecord && userRecord.emailVerified) { // Check if emailVerified is true
                 // In a real application, you would verify the password securely.
                 // For this example, we are skipping password verification.
                 // **SECURITY WARNING: DO NOT SKIP PASSWORD VERIFICATION IN PRODUCTION!**
                 callback({ success: true, message: 'Login successful', uid: userRecord.uid });
+            } else if (userRecord && !userRecord.emailVerified) {
+                callback({ success: false, message: 'Email not verified. Please check your inbox.' });
             } else {
                 callback({ success: false, message: 'User not found' });
             }

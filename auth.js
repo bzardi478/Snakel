@@ -26,44 +26,20 @@ async function registerUser(auth, database, email, password, sgMail, callback) {
     try {
         const userRecord = await auth.createUser({
             email: email,
-            password: password
+            password: password,
+            emailVerified: true // Directly set emailVerified to true
         });
 
-        const verificationLink = await auth.generateEmailVerificationLink(email);
-        console.log('Verification link generated:', verificationLink);
+        console.log('User registered successfully:', userRecord.uid);
+        callback({ success: true, message: 'Registration successful.' });
 
-        const msg = {
-            to: email,
-            from: process.env.SENDGRID_EMAIL, // Your SendGrid verified email
-            subject: 'Verify your email for Snake Multiplayer',
-            html: `<p>Please click the following link to verify your email address:</p><p><a href="${verificationLink}">${verificationLink}</a></p><p>This link will expire in a short time.</p>`,
-        };
-
-        sgMail
-            .send(msg)
-            .then(() => {
-                console.log('Verification email sent to', email);
-                callback({ success: true, message: 'Registration successful. Please check your email to verify your account.' });
-            })
-            .catch((error) => {
-                console.error('Error sending verification email:', error);
-                if (error.response && error.response.body) {
-                    console.error('SendGrid Error Body:', error.response.body); // Log the detailed error from SendGrid
-                }
-                // If email sending fails, you might want to delete the user you just created
-                auth.deleteUser(userRecord.uid)
-                    .then(() => console.log('User deleted due to email sending failure:', userRecord.uid))
-                    .catch((deleteError) => console.error('Error deleting user:', deleteError));
-                callback({ success: false, message: 'Error sending verification email.' });
-            });
-
-        // Optionally, you can also store user data in your Realtime Database
+        // Optionally, store user data in your Realtime Database
         const userRef = database.ref(`users/${userRecord.uid}`);
         await userRef.set({
             email: email,
             registrationTime: Date.now(),
-            emailVerified: false,
-            verificationToken: null // You might store the token here if needed for custom verification
+            emailVerified: true, // Ensure it's true in the database as well
+            verificationToken: null
         });
 
     } catch (error) {
