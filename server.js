@@ -106,9 +106,11 @@ function generateInitialFood(count) {
 // Connection Management
 io.on('connection', (socket) => {
     console.log(`Client connected: ${socket.id}`);
+    
 
     // Authentication Event Listeners
     socket.on('register', async (data, callback) => {
+        console.log('Inside socket.on(\'register\') handler');
         console.log('Registration request received:', data);
         if (!firebaseAdminInstance) {
             console.error('Firebase Admin SDK not initialized for registration.');

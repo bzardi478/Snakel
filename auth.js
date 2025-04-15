@@ -1,7 +1,9 @@
 // auth.js
 // const admin = require('firebase-admin'); // REMOVE THIS LINE
 
+
 async function registerUser(adminInstance, username, password, callback) {
+    console.log('adminInstance inside registerUser:', adminInstance);
     try {
         const userRecord = await adminInstance.auth().createUser({
             displayName: username,
