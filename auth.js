@@ -16,20 +16,18 @@ async function registerUser(authService, database, username, password, callback)
 
     try {
         console.log('authService in auth.js:', authService);
-        console.log('typeof authService:', typeof authService);
+        console.log('authService.app_ in auth.js:', authService.app_);
+        console.log('authService.app_.auth in auth.js:', authService.app_ ? authService.app_.auth : undefined); // Check if app_ exists
 
-        // Try calling authService() and logging what it returns
-        const authMethods = authService();
-        console.log('authService() result:', authMethods);
-        console.log('typeof authService() result:', typeof authMethods);
+        const authMethods = authService.app_.auth; // Try accessing auth through app_
 
-        const userRecord = await authMethods.createUser({ // Try using the result to create user
+        const userRecord = await authMethods.createUser({
             email: username,
             password: password,
             displayName: username
         });
 
-        await authMethods.sendEmailVerification(userRecord.uid); // Try using the result to send verification email
+        await authMethods.sendEmailVerification(userRecord.uid);
         console.log(`Verification email sent to: ${username}`);
 
         const userRef = database.ref(`users/${userRecord.uid}`);
