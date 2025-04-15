@@ -15,6 +15,7 @@ async function registerUser(adminInstance, username, password, callback) {
 
     try {
         const userRecord = await adminInstance.auth().createUser({
+            console.log('admin.auth in auth.js:', admin.auth);
             email: username, // Use username as email
             password: password,
             displayName: username // You can set a display name if needed
