@@ -33,29 +33,27 @@ const io = new Server(httpServer, {
 
 let firebaseAdminInstance = null; // Declare firebaseAdminInstance at the top
 
-// Firebase Admin SDK initialization (keep this at the top)
 async function initializeAdmin() {
     console.log('Initializing Firebase Admin SDK...');
     const serviceAccountEnv = process.env.FIREBASE_SERVICE_ACCOUNT;
-    console.log('Value of process.env.FIREBASE_SERVICE_ACCOUNT:', serviceAccountEnv);
+    console.log('Value of process.env.FIREBASE_SERVICE_ACCOUNT (raw):', serviceAccountEnv);
 
-    let serviceAccount = null;
     if (serviceAccountEnv) {
         try {
-            serviceAccount = JSON.parse(serviceAccountEnv);
-            console.log('Service account loaded from environment variable:', serviceAccount);
+            const serviceAccount = JSON.parse(serviceAccountEnv);
+            console.log('Service account loaded from environment variable (parsed):', serviceAccount);
 
-            // Explicitly replace double backslashes with single backslashes in private_key
             if (serviceAccount && serviceAccount.private_key) {
-                serviceAccount.private_key = serviceAccount.private_key.replace(/\\\\n/g, '\\n');
+                console.log('Private key before replacement:', serviceAccount.private_key);
                 console.log('Private key after replacing double backslashes:', serviceAccount.private_key);
             }
 
-            const app = admin.initializeApp({ // Initialize and get the app instance
-                credential: admin.credential.cert(serviceAccount)
+            const app = admin.initializeApp({
+                credential: admin.credential.cert(serviceAccount),
+                databaseURL: process.env.FIREBASE_DATABASE_URL // Add this line
             });
             console.log('Firebase Admin SDK initialized successfully!');
-            return app; // Return the initialized app instance
+            return app;
         } catch (error) {
             console.error('Error parsing FIREBASE_SERVICE_ACCOUNT:', error);
             process.exit(1);
@@ -65,7 +63,6 @@ async function initializeAdmin() {
         process.exit(1);
     }
 }
-
 // Middleware
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
