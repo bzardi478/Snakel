@@ -1,69 +1,82 @@
-const admin = require('firebase-admin');
 const nodemailer = require('nodemailer');
-const { v4: uuidv4 } = require('uuid');
 
-// Configure Nodemailer (replace with your email service details)
 const transporter = nodemailer.createTransport({
-    service: 'Gmail', // Or your email service (e.g., 'SMTP', 'Sendgrid')
+    service: 'gmail',
     auth: {
-        user: 'Mzardi07@gmail.com', // Your email address
-        pass: 'frsk sfll tors aykf' // Your email password or an app-specific password
+        user: process.env.NODEMAILER_EMAIL, // Your Gmail address (or other email service)
+        pass: process.env.NODEMAILER_PASSWORD // Your App Password or email password
     }
 });
 
 function isValidEmail(email) {
+    // Basic email validation regex
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
 }
 
-async function registerUser(authService, database, username, password, callback) {
-    if (!isValidEmail(username)) {
+async function registerUser(auth, database, email, password, sgMail, callback) {
+    if (!isValidEmail(email)) {
         return callback({ success: false, message: 'Invalid email format.' });
+    }
+    if (!password || password.length < 6) {
+        return callback({ success: false, message: 'Password must be at least 6 characters long.' });
     }
 
     try {
-        const userRecord = await authService.createUser({
-            email: username,
-            password: password,
-            displayName: username
+        const userRecord = await auth.createUser({
+            email: email,
+            password: password
         });
 
-        const verificationToken = uuidv4();
-        const verificationLink = `https://snakel.onrender.com/verify-email?token=${verificationToken}&uid=${userRecord.uid}`; // Replace with your actual domain and verification link endpoint
+        const verificationLink = await auth.generateEmailVerificationLink(email);
+        console.log('Verification link generated:', verificationLink);
 
-        // Store the verification token in the database (you'll need to adjust this based on your database structure)
-        const userRef = database.ref(`users/${userRecord.uid}`);
-        await userRef.update({ verificationToken: verificationToken, emailVerified: false });
-
-        const mailOptions = {
-            from: 'mzardi07@gmail.com', // Your email address
-            to: username,
-            subject: 'Verify Your Email Address',
-            html: `<p>Please click the following link to verify your email address:</p><p><a href="${verificationLink}">${verificationLink}</a></p>`
+        const msg = {
+            to: email,
+            from: process.env.SENDGRID_EMAIL, // Your SendGrid verified email
+            subject: 'Verify your email for Snake Multiplayer',
+            html: `<p>Please click the following link to verify your email address:</p><p><a href="${verificationLink}">${verificationLink}</a></p><p>This link will expire in a short time.</p>`,
         };
 
-        transporter.sendMail(mailOptions, (error, info) => {
-            if (error) {
+        sgMail
+            .send(msg)
+            .then(() => {
+                console.log('Verification email sent to', email);
+                callback({ success: true, message: 'Registration successful. Please check your email to verify your account.' });
+            })
+            .catch((error) => {
                 console.error('Error sending verification email:', error);
+                // If email sending fails, you might want to delete the user you just created
+                auth.deleteUser(userRecord.uid)
+                    .then(() => console.log('User deleted due to email sending failure:', userRecord.uid))
+                    .catch((deleteError) => console.error('Error deleting user:', deleteError));
                 callback({ success: false, message: 'Error sending verification email.' });
-            } else {
-                console.log('Verification email sent:', info.response);
-                callback({ success: true, message: 'User registered successfully. Please check your email to verify your account.', uid: userRecord.uid });
-            }
+            });
+
+        // Optionally, you can also store user data in your Realtime Database
+        const userRef = database.ref(`users/${userRecord.uid}`);
+        await userRef.set({
+            email: email,
+            registrationTime: Date.now(),
+            emailVerified: false,
+            verificationToken: null // You might store the token here if needed for custom verification
         });
 
     } catch (error) {
-        console.error('Error registering user:', error);
-        let errorMessage = 'Error registering user.';
+        console.error('Error during user registration:', error);
+        let message = 'Registration failed.';
         if (error.code === 'auth/email-already-in-use') {
-            errorMessage = 'This email address is already in use.';
+            message = 'The email address is already in use by another account.';
         } else if (error.code === 'auth/invalid-email') {
-            errorMessage = 'Invalid email address.';
+            message = 'The email address is invalid.';
         } else if (error.code === 'auth/weak-password') {
-            errorMessage = 'Password should be at least 6 characters.';
+            message = 'The password is too weak.';
         }
-        callback({ success: false, message: errorMessage });
+        callback({ success: false, message: message });
     }
 }
 
-module.exports = { registerUser, isValidEmail };
+module.exports = {
+    registerUser,
+    isValidEmail
+};

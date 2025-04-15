@@ -80,7 +80,7 @@ app.get('/', (req, res) => {
 // Email Verification Route
 app.get('/verify-email', async (req, res) => {
     console.log('Verification link visited!');
-    console.log('Verification link query:', req.query); // Log all query parameters
+    console.log('Verification link query:', req.query);
     const { token, oobCode } = req.query;
     const verificationToken = token || oobCode;
 
@@ -89,11 +89,16 @@ app.get('/verify-email', async (req, res) => {
         return res.status(400).send('Invalid verification link: Missing token.');
     }
 
+    if (!firebaseAuthService) {
+        console.error('Firebase AuthService is not initialized.');
+        return res.status(500).send('Server error: Firebase Auth not initialized.');
+    }
+
     try {
-        const actionCodeResult = await firebaseAdminInstance.auth().checkActionCode(verificationToken);
+        const actionCodeResult = await firebaseAuthService.checkActionCode(verificationToken);
         const uid = actionCodeResult.data.uid;
 
-        await firebaseAdminInstance.auth().updateUser(uid, { emailVerified: true });
+        await firebaseAuthService.updateUser(uid, { emailVerified: true });
 
         const userRef = firebaseAdminInstance.database().ref(`users/${uid}`);
         await userRef.update({ emailVerified: true, verificationToken: null });
@@ -101,7 +106,7 @@ app.get('/verify-email', async (req, res) => {
         res.send('Email verified successfully! You can now log in.');
     } catch (error) {
         console.error('Error verifying email:', error);
-        res.status(400).send(`Invalid verification link: ${error.message}`); // Send the Firebase error message back
+        res.status(400).send(`Invalid verification link: ${error.message}`);
     }
 });
 
