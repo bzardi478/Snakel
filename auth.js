@@ -10,20 +10,22 @@ function isValidEmail(email) {
     return emailRegex.test(email);
 }
 
-async function registerUser(authService, database, username, password, callback) { // Accept authService and database
+async function registerUser(authService, database, username, password, callback) {
     if (!isValidEmail(username)) {
         return callback({ success: false, message: 'Invalid email format.' });
     }
-    console.log('authService in auth.js:', authService);
+
     try {
         console.log('authService in auth.js:', authService);
-        const userRecord = await authService.createUser({
+        console.log('authService.users in auth.js:', authService.users); // Log the 'users' property
+
+        const userRecord = await authService.users.createUser({ // Try accessing createUser through .users
             email: username,
             password: password,
             displayName: username
         });
 
-        await authService.sendEmailVerification(userRecord.uid);
+        await authService.users.sendEmailVerification(userRecord.uid); // Try accessing sendEmailVerification through .users
         console.log(`Verification email sent to: ${username}`);
 
         const userRef = database.ref(`users/${userRecord.uid}`);
@@ -47,7 +49,6 @@ async function registerUser(authService, database, username, password, callback)
         callback({ success: false, message: errorMessage });
     }
 }
-
 async function loginUser(adminInstance, username, password, callback) {
     try {
         const user = await adminInstance.auth().getUserByEmail(username);
