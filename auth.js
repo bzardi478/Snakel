@@ -12,10 +12,10 @@ async function registerUser(adminInstance, username, password, callback) {
     if (!isValidEmail(username)) {
         return callback({ success: false, message: 'Invalid email format.' });
     }
-
+    console.log('admin.auth in auth.js:', admin.auth);
     try {
+
         const userRecord = await adminInstance.auth().createUser({
-            console.log('admin.auth in auth.js:', admin.auth);
             email: username, // Use username as email
             password: password,
             displayName: username // You can set a display name if needed
