@@ -1,52 +1,76 @@
 // auth.js
-// const admin = require('firebase-admin'); // REMOVE THIS LINE
 
+const admin = require('firebase-admin'); // Make sure this is still here at the top
+
+function isValidEmail(email) {
+    // Basic email validation regex
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+}
 
 async function registerUser(adminInstance, username, password, callback) {
-    console.log('adminInstance inside registerUser:', adminInstance);
+    if (!isValidEmail(username)) {
+        return callback({ success: false, message: 'Invalid email format.' });
+    }
+
     try {
         const userRecord = await adminInstance.auth().createUser({
-            displayName: username,
+            email: username, // Use username as email
             password: password,
+            displayName: username // You can set a display name if needed
         });
+
+        // Send verification email
+        await adminInstance.auth().sendEmailVerification(userRecord.uid);
+        console.log(`Verification email sent to: ${username}`);
 
         const database = adminInstance.database();
         const userRef = database.ref(`users/${userRecord.uid}`);
         await userRef.set({
             username: username,
+            emailVerified: false // Initially set to false, updated when verified
         });
 
-        callback({ success: true, message: 'User registered successfully', uid: userRecord.uid });
+        callback({ success: true, message: 'User registered successfully. Please check your email to verify your account.', uid: userRecord.uid });
+
     } catch (error) {
-        console.error('Error registering user - CATCH BLOCK ENTERED (Realtime DB):', error);
-        callback({ success: false, message: `Error registering user: ${error.message}` });
+        console.error('Error registering user:', error);
+        let errorMessage = 'Error registering user.';
+        if (error.code === 'auth/email-already-in-use') {
+            errorMessage = 'This email address is already in use.';
+        } else if (error.code === 'auth/invalid-email') {
+            errorMessage = 'Invalid email address.';
+        } else if (error.code === 'auth/weak-password') {
+            errorMessage = 'Password should be at least 6 characters.';
+        }
+        callback({ success: false, message: errorMessage });
     }
 }
 
 async function loginUser(adminInstance, username, password, callback) {
     try {
-        const database = adminInstance.database();
-        const usersRef = database.ref('users');
-        const snapshot = await usersRef.orderByChild('username').equalTo(username).once('value');
-        const userData = snapshot.val();
-
-        if (!userData) {
+        const user = await adminInstance.auth().getUserByEmail(username);
+        if (!user) {
             return callback({ success: false, message: 'Invalid username or password' });
         }
 
-        const uid = Object.keys(userData)[0]; // Get the UID of the found user
+        if (!user.emailVerified) {
+            return callback({ success: false, message: 'Your email address is not verified. Please check your inbox.' });
+        }
 
-        // Firebase Admin SDK doesn't directly verify passwords stored with createUser.
-        // You would typically handle password verification on the client-side
-        // using Firebase Authentication and then verify the ID token on the server.
+        // Since we don't have the password stored on the server,
+        // we rely on the client-side (Firebase SDK) to handle password verification.
+        // Here, we just confirm the user exists and is verified for this example.
+        // In a real application, you would typically use Firebase Authentication's
+        // signInWithEmailAndPassword on the client and then verify the ID token here.
 
-        console.warn('Password verification not implemented on the server-side in this Realtime DB example.');
-        return callback({ success: true, message: 'Login successful', uid: uid });
+        console.warn('Password verification not fully implemented on the server-side in this example.');
+        return callback({ success: true, message: 'Login successful', uid: user.uid });
 
     } catch (error) {
-        console.error('Error during login (Realtime DB):', error);
+        console.error('Error during login:', error);
         callback({ success: false, message: `Error during login: ${error.message}` });
     }
 }
 
-module.exports = { registerUser, loginUser };
+module.exports = { registerUser, loginUser };   
