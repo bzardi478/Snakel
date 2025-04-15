@@ -53,6 +53,7 @@ async function initializeAdmin() {
                 databaseURL: process.env.FIREBASE_DATABASE_URL // Add this line
             });
             console.log('Firebase Admin SDK initialized successfully!');
+            console.log('Firebase Admin SDK Version:', admin.SDK_VERSION)
             return app;
         } catch (error) {
             console.error('Error parsing FIREBASE_SERVICE_ACCOUNT:', error);

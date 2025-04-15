@@ -1,6 +1,6 @@
 // auth.js
 
-const admin = require('firebase-admin'); // Ensure this is at the top
+const { auth } = require('firebase-admin');
 
 function isValidEmail(email) {
     // Basic email validation regex
