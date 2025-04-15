@@ -1,8 +1,6 @@
 // auth.js
 
-const admin = require('firebase-admin'); // Ensure you import admin here as well
-
-
+const admin = require('firebase-admin');
 
 function isValidEmail(email) {
     // Basic email validation regex
@@ -10,33 +8,39 @@ function isValidEmail(email) {
     return emailRegex.test(email);
 }
 
-
-async function registerUser(authServiceFromSocket, database, username, password, callback) {
+async function registerUser(authService, database, username, password, mailgunInstance, callback) {
     if (!isValidEmail(username)) {
         return callback({ success: false, message: 'Invalid email format.' });
     }
 
     try {
-        // Re-obtain the Auth service within this module
-        const auth = admin.auth();
-        console.log('auth object re-obtained in auth.js:', auth);
-
-        const userRecord = await auth.createUser({
+        const userRecord = await authService.createUser({
             email: username,
             password: password,
             displayName: username
         });
 
-        await auth.sendEmailVerification(userRecord.uid);
-        console.log(`Verification email sent to: ${username}`);
+        const verificationLink = await authService.generateEmailVerificationLink(userRecord.email);
+        console.log('Email Verification Link (Mailgun):', verificationLink);
 
-        const userRef = database.ref(`users/${userRecord.uid}`);
-        await userRef.set({
-            username: username,
-            emailVerified: false
+        const data = {
+            from: 'Your Application <your@yourdomain.com>', // Replace with your sending address
+            to: username,
+            subject: 'Verify Your Email Address',
+            html: `<p>Please click the following link to verify your email address:</p><p><a href="${verificationLink}">${verificationLink}</a></p>`
+        };
+
+        mailgunInstance.messages().send(data, (error, body) => {
+            if (error) {
+                console.error('Error sending verification email via Mailgun:', error);
+                callback({ success: false, message: 'Error sending verification email.' });
+            } else {
+                console.log('Verification email sent via Mailgun:', body);
+                const userRef = database.ref(`users/${userRecord.uid}`);
+                userRef.set({ username: username, emailVerified: false });
+                callback({ success: true, message: 'User registered successfully. Please check your email to verify your account.', uid: userRecord.uid });
+            }
         });
-
-        callback({ success: true, message: 'User registered successfully. Please check your email to verify your account.', uid: userRecord.uid });
 
     } catch (error) {
         console.error('Error registering user:', error);
@@ -51,30 +55,5 @@ async function registerUser(authServiceFromSocket, database, username, password,
         callback({ success: false, message: errorMessage });
     }
 }
-async function loginUser(adminInstance, username, password, callback) {
-    try {
-        const user = await adminInstance.auth().getUserByEmail(username);
-        if (!user) {
-            return callback({ success: false, message: 'Invalid username or password' });
-        }
 
-        if (!user.emailVerified) {
-            return callback({ success: false, message: 'Your email address is not verified. Please check your inbox.' });
-        }
-
-        // Since we don't have the password stored on the server,
-        // we rely on the client-side (Firebase SDK) to handle password verification.
-        // Here, we just confirm the user exists and is verified for this example.
-        // In a real application, you would typically use Firebase Authentication's
-        // signInWithEmailAndPassword on the client and then verify the ID token here.
-
-        console.warn('Password verification not fully implemented on the server-side in this example.');
-        return callback({ success: true, message: 'Login successful', uid: user.uid });
-
-    } catch (error) {
-        console.error('Error during login:', error);
-        callback({ success: false, message: `Error during login: ${error.message}` });
-    }
-}
-
-module.exports = { registerUser, loginUser };
+module.exports = { registerUser, isValidEmail };
