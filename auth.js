@@ -1,6 +1,6 @@
 // auth.js
 
-const admin = require('firebase-admin'); // Keep this at the top
+const admin = require('firebase-admin'); // Ensure you import admin here as well
 
 
 
@@ -9,16 +9,17 @@ function isValidEmail(email) {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
 }
-async function registerUser(authService, database, username, password, callback) {
+
+
+async function registerUser(authServiceFromSocket, database, username, password, callback) {
     if (!isValidEmail(username)) {
         return callback({ success: false, message: 'Invalid email format.' });
     }
 
     try {
-        console.log('authService.app_.auth in auth.js:', authService.app_.auth);
-        const auth = authService.app_.auth(); // Call the function to get the Auth object
-
-        console.log('auth object after calling:', auth); // Log the auth object
+        // Re-obtain the Auth service within this module
+        const auth = admin.auth();
+        console.log('auth object re-obtained in auth.js:', auth);
 
         const userRecord = await auth.createUser({
             email: username,
