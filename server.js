@@ -36,11 +36,23 @@ async function initializeAdmin() {
     console.log('Initializing Firebase Admin SDK...');
     const serviceAccountEnv = process.env.FIREBASE_SERVICE_ACCOUNT;
     console.log('Value of process.env.FIREBASE_SERVICE_ACCOUNT:', serviceAccountEnv);
+
     let serviceAccount = null;
     if (serviceAccountEnv) {
         try {
             serviceAccount = JSON.parse(serviceAccountEnv);
             console.log('Service account loaded from environment variable:', serviceAccount);
+
+            // Explicitly replace double backslashes with single backslashes in private_key
+            if (serviceAccount && serviceAccount.private_key) {
+                serviceAccount.private_key = serviceAccount.private_key.replace(/\\\\n/g, '\\n');
+                console.log('Private key after replacing double backslashes:', serviceAccount.private_key);
+            }
+
+            admin.initializeApp({
+                credential: admin.credential.cert(serviceAccount)
+            });
+            console.log('Firebase Admin SDK initialized successfully!');
         } catch (error) {
             console.error('Error parsing FIREBASE_SERVICE_ACCOUNT:', error);
             process.exit(1);
@@ -49,28 +61,13 @@ async function initializeAdmin() {
         console.error('FIREBASE_SERVICE_ACCOUNT environment variable is not set.');
         process.exit(1);
     }
-
-    if (serviceAccount) {
-        try {
-            console.log('Attempting to initialize Firebase Admin SDK...'); // Added log
-            const adminInstance = admin.initializeApp({
-                credential: admin.credential.cert(serviceAccount),
-                databaseURL: 'https://snakel-default-rtdb.europe-west1.firebasedatabase.app' // Ensure this is correct
-            });
-            console.log('Firebase Admin SDK initialized successfully (Realtime Database).');
-            console.log('Testing Realtime Database connection:', admin.database());
-            return adminInstance;
-        } catch (error) {
-            console.error('Error initializing Firebase Admin SDK:', error);
-            console.error('Initialization Error Details:', error.message); // Added more specific error log
-            console.error(error);
-            process.exit(1);
-        }
-    } else {
-        console.error('Firebase Admin SDK could not initialize due to missing service account.');
-        process.exit(1);
-    }
 }
+
+// Make sure to call initializeAdmin somewhere in your server startup
+initializeAdmin().catch(error => {
+    console.error("Error during Firebase Admin SDK initialization:", error);
+});
+
 // Middleware
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
