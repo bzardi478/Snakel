@@ -16,7 +16,9 @@ async function registerUser(authService, database, username, password, callback)
 
     try {
         console.log('authService.app_.auth in auth.js:', authService.app_.auth);
-        const auth = authService.app_.auth; // Get the Auth object
+        const auth = authService.app_.auth(); // Call the function to get the Auth object
+
+        console.log('auth object after calling:', auth); // Log the auth object
 
         const userRecord = await auth.createUser({
             email: username,
