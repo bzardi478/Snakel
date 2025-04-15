@@ -1,6 +1,6 @@
 // server.js
 
-require('dotenv').config();
+require('dotenv').config({path: '/.env'});
 const express = require('express');
 const { createServer } = require('node:http');
 const { Server } = require('socket.io');
