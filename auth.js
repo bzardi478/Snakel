@@ -9,7 +9,6 @@ function isValidEmail(email) {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
 }
-
 async function registerUser(authService, database, username, password, callback) {
     if (!isValidEmail(username)) {
         return callback({ success: false, message: 'Invalid email format.' });
@@ -17,15 +16,20 @@ async function registerUser(authService, database, username, password, callback)
 
     try {
         console.log('authService in auth.js:', authService);
-        console.log('authService.users in auth.js:', authService.users); // Log the 'users' property
+        console.log('typeof authService:', typeof authService);
 
-        const userRecord = await authService.users.createUser({ // Try accessing createUser through .users
+        // Try calling authService() and logging what it returns
+        const authMethods = authService();
+        console.log('authService() result:', authMethods);
+        console.log('typeof authService() result:', typeof authMethods);
+
+        const userRecord = await authMethods.createUser({ // Try using the result to create user
             email: username,
             password: password,
             displayName: username
         });
 
-        await authService.users.sendEmailVerification(userRecord.uid); // Try accessing sendEmailVerification through .users
+        await authMethods.sendEmailVerification(userRecord.uid); // Try using the result to send verification email
         console.log(`Verification email sent to: ${username}`);
 
         const userRef = database.ref(`users/${userRecord.uid}`);
