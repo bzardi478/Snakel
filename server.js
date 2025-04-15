@@ -8,7 +8,6 @@ const path = require('path');
 const auth = require('./auth'); // Import auth.js
 const admin = require('firebase-admin'); // Import Firebase Admin SDK
 
-const admin = require('firebase-admin');
 
 const app = express();
 const httpServer = createServer(app);
