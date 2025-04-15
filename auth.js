@@ -29,7 +29,7 @@ async function registerUser(authService, database, username, password, callback)
         });
 
         const verificationToken = uuidv4();
-        const verificationLink = `https://yourdomain.com/verify-email?token=${verificationToken}&uid=${userRecord.uid}`; // Replace with your actual domain and verification link endpoint
+        const verificationLink = `https://snakel.onrender.com/verify-email?token=${verificationToken}&uid=${userRecord.uid}`; // Replace with your actual domain and verification link endpoint
 
         // Store the verification token in the database (you'll need to adjust this based on your database structure)
         const userRef = database.ref(`users/${userRecord.uid}`);
