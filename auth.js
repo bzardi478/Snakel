@@ -1,6 +1,6 @@
 // auth.js
 
-const { auth } = require('firebase-admin');
+const admin = require('firebase-admin'); // Keep this at the top
 
 function isValidEmail(email) {
     // Basic email validation regex
@@ -12,17 +12,17 @@ async function registerUser(adminInstance, username, password, callback) {
     if (!isValidEmail(username)) {
         return callback({ success: false, message: 'Invalid email format.' });
     }
-    console.log('admin.auth in auth.js:', admin.auth);
-    try {
 
+    try {
+        console.log('adminInstance.auth in auth.js:', adminInstance.auth); // Use the passed instance
         const userRecord = await adminInstance.auth().createUser({
             email: username, // Use username as email
             password: password,
             displayName: username // You can set a display name if needed
         });
 
-        // Send verification email using the directly imported admin
-        await admin.auth().sendEmailVerification(userRecord.uid);
+        // Send verification email using the passed adminInstance
+        await adminInstance.auth().sendEmailVerification(userRecord.uid);
         console.log(`Verification email sent to: ${username}`);
 
         const database = adminInstance.database();
