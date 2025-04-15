@@ -14,22 +14,22 @@ async function registerUser(adminInstance, username, password, callback) {
     }
 
     try {
-        console.log('adminInstance.auth in auth.js:', adminInstance.auth); // Use the passed instance
-        const userRecord = await adminInstance.auth().createUser({
-            email: username, // Use username as email
+        console.log('adminInstance.auth in auth.js:', adminInstance.auth);
+        const authService = adminInstance.auth(); // Call it as a function
+        const userRecord = await authService.createUser({
+            email: username,
             password: password,
-            displayName: username // You can set a display name if needed
+            displayName: username
         });
 
-        // Send verification email using the passed adminInstance
-        await adminInstance.auth().sendEmailVerification(userRecord.uid);
+        await authService.sendEmailVerification(userRecord.uid);
         console.log(`Verification email sent to: ${username}`);
 
         const database = adminInstance.database();
         const userRef = database.ref(`users/${userRecord.uid}`);
         await userRef.set({
             username: username,
-            emailVerified: false // Initially set to false, updated when verified
+            emailVerified: false
         });
 
         callback({ success: true, message: 'User registered successfully. Please check your email to verify your account.', uid: userRecord.uid });
