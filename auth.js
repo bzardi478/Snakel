@@ -1,12 +1,13 @@
 const nodemailer = require('nodemailer');
 
-const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-        user: process.env.NODEMAILER_EMAIL, // Your Gmail address (or other email service)
-        pass: process.env.NODEMAILER_PASSWORD // Your App Password or email password
-    }
-});
+// Nodemailer configuration (commented out as we are using SendGrid)
+// const transporter = nodemailer.createTransport({
+//     service: 'gmail',
+//     auth: {
+//         user: process.env.NODEMAILER_EMAIL, // Your Gmail address (or other email service)
+//         pass: process.env.NODEMAILER_PASSWORD // Your App Password or email password
+//     }
+// });
 
 function isValidEmail(email) {
     // Basic email validation regex
@@ -46,6 +47,9 @@ async function registerUser(auth, database, email, password, sgMail, callback) {
             })
             .catch((error) => {
                 console.error('Error sending verification email:', error);
+                if (error.response && error.response.body) {
+                    console.error('SendGrid Error Body:', error.response.body); // Log the detailed error from SendGrid
+                }
                 // If email sending fails, you might want to delete the user you just created
                 auth.deleteUser(userRecord.uid)
                     .then(() => console.log('User deleted due to email sending failure:', userRecord.uid))
