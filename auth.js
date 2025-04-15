@@ -8,14 +8,13 @@ function isValidEmail(email) {
     return emailRegex.test(email);
 }
 
-async function registerUser(adminInstance, username, password, callback) {
+async function registerUser(authService, database, username, password, callback) { // Accept authService and database
     if (!isValidEmail(username)) {
         return callback({ success: false, message: 'Invalid email format.' });
     }
 
     try {
-        console.log('adminInstance.auth in auth.js:', adminInstance.auth);
-        const authService = adminInstance.auth(); // Call it as a function
+        console.log('authService in auth.js:', authService);
         const userRecord = await authService.createUser({
             email: username,
             password: password,
@@ -25,7 +24,6 @@ async function registerUser(adminInstance, username, password, callback) {
         await authService.sendEmailVerification(userRecord.uid);
         console.log(`Verification email sent to: ${username}`);
 
-        const database = adminInstance.database();
         const userRef = database.ref(`users/${userRecord.uid}`);
         await userRef.set({
             username: username,

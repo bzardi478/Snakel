@@ -32,6 +32,7 @@ const io = new Server(httpServer, {
 });
 
 let firebaseAdminInstance = null; // Declare firebaseAdminInstance at the top
+let firebaseAuthService = null; // Declare firebaseAuthService at the top
 
 async function initializeAdmin() {
     console.log('Initializing Firebase Admin SDK...');
@@ -43,15 +44,12 @@ async function initializeAdmin() {
             const serviceAccount = JSON.parse(serviceAccountEnv);
             console.log('Service account loaded from environment variable (parsed):', serviceAccount);
 
-            if (serviceAccount && serviceAccount.private_key) {
-                console.log('Private key before replacement:', serviceAccount.private_key);
-                console.log('Private key after replacing double backslashes:', serviceAccount.private_key);
-            }
-
             const app = admin.initializeApp({
                 credential: admin.credential.cert(serviceAccount),
-                databaseURL: process.env.FIREBASE_DATABASE_URL // Add this line
+                databaseURL: process.env.FIREBASE_DATABASE_URL
             });
+            firebaseAdminInstance = app;
+            firebaseAuthService = admin.auth(app); // Initialize firebaseAuthService
             console.log('Firebase Admin SDK initialized successfully!');
             console.log('Firebase Admin SDK Version:', admin.SDK_VERSION)
             return app;
@@ -110,19 +108,19 @@ io.on('connection', (socket) => {
 
 
     console.log('A client connected. Attempting to set up register handler.');
-    
+
 
     // Authentication Event Listeners
     socket.on('register', async (data, callback) => {
         console.log('*** ENTERED socket.on(\'register\') ***')
         console.log('Inside socket.on(\'register\') handler');
         console.log('Registration request received:', data);
-        if (!firebaseAdminInstance) {
-            console.error('Firebase Admin SDK not initialized for registration.');
+        if (!firebaseAdminInstance || !firebaseAuthService) {
+            console.error('Firebase Admin SDK or Auth service not initialized for registration.');
             return callback({ success: false, message: 'Server error: Firebase not initialized.' });
         }
-        console.log('firebaseAdminInstance before auth.registerUser:', firebaseAdminInstance);
-        auth.registerUser(firebaseAdminInstance, data.username, data.password, (result) => {
+        console.log('firebaseAuthService before auth.registerUser:', firebaseAuthService);
+        auth.registerUser(firebaseAuthService, firebaseAdminInstance.database(), data.username, data.password, (result) => {
             console.log('Registration result sent to client:', result);
             callback(result);
         });
