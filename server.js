@@ -114,6 +114,7 @@ io.on('connection', (socket) => {
             console.error('Firebase Admin SDK not initialized for registration.');
             return callback({ success: false, message: 'Server error: Firebase not initialized.' });
         }
+        console.log('firebaseAdminInstance before auth.registerUser:', firebaseAdminInstance);
         auth.registerUser(firebaseAdminInstance, data.username, data.password, (result) => {
             console.log('Registration result sent to client:', result);
             callback(result);
