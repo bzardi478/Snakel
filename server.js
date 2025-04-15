@@ -34,14 +34,11 @@ let firebaseAdminInstance = null; // Declare firebaseAdminInstance at the top
 let firebaseAuthService = null; // Declare firebaseAuthService at the top
 
 async function initializeAdmin() {
-    console.log('Initializing Firebase Admin SDK...');
     const serviceAccountEnv = process.env.FIREBASE_SERVICE_ACCOUNT;
-    console.log('Value of process.env.FIREBASE_SERVICE_ACCOUNT (raw):', serviceAccountEnv);
 
     if (serviceAccountEnv) {
         try {
             const serviceAccount = JSON.parse(serviceAccountEnv);
-            console.log('Service account loaded from environment variable (parsed):', serviceAccount);
 
             const app = admin.initializeApp({
                 credential: admin.credential.cert(serviceAccount),
@@ -49,8 +46,6 @@ async function initializeAdmin() {
             });
             firebaseAdminInstance = app;
             firebaseAuthService = admin.auth(app); // Initialize firebaseAuthService
-            console.log('Firebase Admin SDK initialized successfully!');
-            console.log('Firebase Admin SDK Version:', admin.SDK_VERSION)
             return app;
         } catch (error) {
             console.error('Error parsing FIREBASE_SERVICE_ACCOUNT:', error);
@@ -82,6 +77,43 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
+// Email Verification Route
+app.get('/verify-email', async (req, res) => {
+    console.log('Verification link visited!');
+    const { token, oobCode, apiKey, mode, continueUrl, lang } = req.query; // Common Firebase verification link parameters
+    const verificationToken = token || oobCode;
+
+    if (!verificationToken || !apiKey || mode !== 'verifyEmail' || !continueUrl) {
+        console.error('Invalid verification link parameters:', req.query);
+        return res.status(400).send('Invalid verification link.');
+    }
+
+    try {
+        const actionCodeResult = await firebaseAdminInstance.auth().checkActionCode(verificationToken);
+        const uid = actionCodeResult.data.uid;
+
+        await firebaseAdminInstance.auth().updateUser(uid, { emailVerified: true });
+
+        // Optionally update your Realtime Database
+        const userRef = firebaseAdminInstance.database().ref(`users/${uid}`);
+        await userRef.update({ emailVerified: true, verificationToken: null });
+
+        res.send('Email verified successfully! You can now log in.');
+    } catch (error) {
+        console.error('Error verifying email:', error);
+        let errorMessage = 'An error occurred while verifying your email.';
+        switch (error.code) {
+            case 'auth/invalid-action-code':
+            case 'auth/expired-action-code':
+            case 'auth/user-disabled':
+            case 'auth/user-not-found':
+                errorMessage = 'Invalid or expired verification link.';
+                break;
+        }
+        res.status(400).send(errorMessage);
+    }
+});
+
 // Game State Management
 const gameState = {
     players: new Map(),
@@ -105,29 +137,18 @@ function generateInitialFood(count) {
 io.on('connection', (socket) => {
     console.log(`Client connected: ${socket.id}`);
 
-
-    console.log('A client connected. Attempting to set up register handler.');
-
-
     // Authentication Event Listeners
     socket.on('register', async (data, callback) => {
-        console.log('*** ENTERED socket.on(\'register\') ***')
-        console.log('Inside socket.on(\'register\') handler');
-        console.log('Registration request received:', data);
         if (!firebaseAdminInstance || !firebaseAuthService) {
             console.error('Firebase Admin SDK or Auth service not initialized for registration.');
             return callback({ success: false, message: 'Server error: Firebase not initialized.' });
         }
-        console.log('firebaseAuthService before auth.registerUser:', firebaseAuthService);
         auth.registerUser(firebaseAuthService, firebaseAdminInstance.database(), data.username, data.password, sgMail, (result) => { // Pass sgMail instance
-            console.log('Registration result sent to client:', result);
             callback(result);
         });
     });
 
     socket.on('login', async (loginData, callback) => {
-        console.log('*** ENTERED socket.on(\'login\') ***');
-        console.log('Login request received:', loginData);
         if (!firebaseAuthService) {
             return callback({ success: false, message: 'Server error: Firebase Auth not initialized.' });
         }
