@@ -14,7 +14,6 @@ async function registerUser(adminInstance, username, password, callback) {
         const userRef = database.ref(`users/${userRecord.uid}`);
         await userRef.set({
             username: username,
-            registrationTime: adminInstance.database.ServerValue.TIMESTAMP,
         });
 
         callback({ success: true, message: 'User registered successfully', uid: userRecord.uid });
