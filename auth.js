@@ -1,5 +1,5 @@
 // auth.js
-const admin = require('firebase-admin'); // Ensure Firebase Admin SDK is imported
+// const admin = require('firebase-admin'); // REMOVE THIS LINE
 
 async function registerUser(adminInstance, username, password, callback) {
     try {
