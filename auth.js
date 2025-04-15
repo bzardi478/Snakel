@@ -2,6 +2,8 @@
 
 const admin = require('firebase-admin'); // Keep this at the top
 
+
+
 function isValidEmail(email) {
     // Basic email validation regex
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -12,7 +14,7 @@ async function registerUser(authService, database, username, password, callback)
     if (!isValidEmail(username)) {
         return callback({ success: false, message: 'Invalid email format.' });
     }
-
+    console.log('authService in auth.js:', authService);
     try {
         console.log('authService in auth.js:', authService);
         const userRecord = await authService.createUser({
