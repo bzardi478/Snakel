@@ -75,8 +75,6 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// REMOVED: Email Verification Route
-
 // Game State Management
 const gameState = {
     players: new Map(),
@@ -106,7 +104,7 @@ io.on('connection', (socket) => {
             console.error('Firebase Admin SDK or Auth service not initialized for registration.');
             return callback({ success: false, message: 'Server error: Firebase not initialized.' });
         }
-        auth.registerUser(firebaseAuthService, firebaseAdminInstance.database(), data.username, data.password, null, (result) => { // Pass null for sgMail
+        auth.registerUser(firebaseAuthService, firebaseAdminInstance.database(), data.username, data.password, (result) => {
             callback(result);
         });
     });
@@ -120,52 +118,39 @@ io.on('connection', (socket) => {
         }
         try {
             const userRecord = await firebaseAuthService.getUserByEmail(loginData.username);
-            if (userRecord && userRecord.emailVerified) { // Check if emailVerified is true
-                // In a real application, you would verify the password securely.
-                // For this example, we are skipping password verification.
-                // **SECURITY WARNING: DO NOT SKIP PASSWORD VERIFICATION IN PRODUCTION!**
-                callback({ success: true, message: 'Login successful', uid: userRecord.uid });
-            } else if (userRecord && !userRecord.emailVerified) {
-                callback({ success: false, message: 'Email not verified. Please check your inbox.' });
-            } else {
-                callback({ success: false, message: 'User not found' });
-            }
+            // For now, we are skipping password verification and email verification
+            callback({ success: true, message: 'Login successful', userId: userRecord.uid });
         } catch (error) {
             console.error('Error during login:', error);
-            callback({ success: false, message: 'Login failed' });
+            callback({ success: false, message: 'Login failed', error: error.message });
         }
     });
 
-    // Player Initialization
-    socket.on('registerPlayer', (playerData, callback) => {
+    // Player Initialization and Chat Name
+    socket.on('startGameRequest', (data) => {
+        const chatName = data.chatName;
         try {
             const playerId = `player_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
             const player = {
-                ...playerData,
                 id: playerId,
                 position: { x: 400, y: 300 },
                 score: 0,
-                lastActive: Date.now()
+                lastActive: Date.now(),
+                name: chatName // Store the chat name
             };
 
             gameState.players.set(socket.id, player);
 
-            callback({
-                success: true,
-                playerId,
-                initialFood: gameState.foods,
-                otherPlayers: Array.from(gameState.players.values())
-            });
-
-            socket.broadcast.emit('newPlayer', player);
+            socket.emit('playerRegistered', { playerId, initialFood: gameState.foods, otherPlayers: Array.from(gameState.players.values()).map(p => ({ id: p.id, position: p.position, name: p.name })) });
+            socket.broadcast.emit('newPlayer', { id: player.id, position: player.position, name: player.name });
         } catch (error) {
             console.error('Registration error:', error);
-            callback({ success: false, error: error.message });
+            socket.emit('registrationFailed', { error: error.message });
         }
     });
 
     // Movement Updates
-    socket.on('playerMove', (movement) => {
+    socket.on('move', (movement) => {
         const player = gameState.players.get(socket.id);
         if (player) {
             player.position = movement;
@@ -192,8 +177,8 @@ io.on('connection', (socket) => {
             });
 
             io.emit('foodUpdate', {
-                removed: foodId,
-                added: gameState.foods[gameState.foods.length - 1]
+                removed: [foodId], // Ensure removed is an array for consistency
+                added: [gameState.foods[gameState.foods.length - 1]] // Ensure added is an array for consistency
             });
         }
     });
