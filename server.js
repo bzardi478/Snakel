@@ -106,6 +106,9 @@ function generateInitialFood(count) {
 // Connection Management
 io.on('connection', (socket) => {
     console.log(`Client connected: ${socket.id}`);
+
+
+    console.log('A client connected. Attempting to set up register handler.');
     
 
     // Authentication Event Listeners
