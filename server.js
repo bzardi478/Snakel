@@ -113,6 +113,7 @@ io.on('connection', (socket) => {
 
     // Authentication Event Listeners
     socket.on('register', async (data, callback) => {
+        console.log('*** ENTERED socket.on(\'register\') ***')
         console.log('Inside socket.on(\'register\') handler');
         console.log('Registration request received:', data);
         if (!firebaseAdminInstance) {
