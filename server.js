@@ -31,6 +31,8 @@ const io = new Server(httpServer, {
     allowEIO3: true // Compatibility with older clients
 });
 
+let firebaseAdminInstance = null; // Declare firebaseAdminInstance at the top
+
 // Firebase Admin SDK initialization (keep this at the top)
 async function initializeAdmin() {
     console.log('Initializing Firebase Admin SDK...');
@@ -49,10 +51,11 @@ async function initializeAdmin() {
                 console.log('Private key after replacing double backslashes:', serviceAccount.private_key);
             }
 
-            admin.initializeApp({
+            const app = admin.initializeApp({ // Initialize and get the app instance
                 credential: admin.credential.cert(serviceAccount)
             });
             console.log('Firebase Admin SDK initialized successfully!');
+            return app; // Return the initialized app instance
         } catch (error) {
             console.error('Error parsing FIREBASE_SERVICE_ACCOUNT:', error);
             process.exit(1);
@@ -62,11 +65,6 @@ async function initializeAdmin() {
         process.exit(1);
     }
 }
-
-// Make sure to call initializeAdmin somewhere in your server startup
-initializeAdmin().catch(error => {
-    console.error("Error during Firebase Admin SDK initialization:", error);
-});
 
 // Middleware
 app.use(express.json());
@@ -108,8 +106,6 @@ function generateInitialFood(count) {
     return foods;
 }
 
-let firebaseAdminInstance = null;
-
 // Connection Management
 io.on('connection', (socket) => {
     console.log(`Client connected: ${socket.id}`);
@@ -128,7 +124,7 @@ io.on('connection', (socket) => {
     });
 
     socket.on('login', (data, callback) => {
-        auth.loginUser(admin, data.username, data.password, callback);
+        auth.loginUser(firebaseAdminInstance, data.username, data.password, callback); // Use the instance
     });
 
     // Player Initialization
