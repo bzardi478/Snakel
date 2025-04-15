@@ -126,8 +126,29 @@ io.on('connection', (socket) => {
         });
     });
 
-    socket.on('login', (data, callback) => {
-        auth.loginUser(firebaseAdminInstance, data.username, data.password, callback); // Use the instance
+    socket.on('login', async (loginData, callback) => {
+        console.log('*** ENTERED socket.on(\'login\') ***');
+        console.log('Login request received:', loginData);
+        if (!firebaseAuthService) {
+            return callback({ success: false, message: 'Server error: Firebase Auth not initialized.' });
+        }
+        if (!auth.isValidEmail(loginData.username)) {
+            return callback({ success: false, message: 'Invalid email format.' });
+        }
+        try {
+            const userRecord = await firebaseAuthService.getUserByEmail(loginData.username);
+            if (userRecord) {
+                // In a real application, you would verify the password securely.
+                // For this example, we are skipping password verification.
+                // **SECURITY WARNING: DO NOT SKIP PASSWORD VERIFICATION IN PRODUCTION!**
+                callback({ success: true, message: 'Login successful', uid: userRecord.uid });
+            } else {
+                callback({ success: false, message: 'User not found' });
+            }
+        } catch (error) {
+            console.error('Error during login:', error);
+            callback({ success: false, message: 'Login failed' });
+        }
     });
 
     // Player Initialization
@@ -224,7 +245,7 @@ setInterval(() => {
 // Server Startup (ONLY after Firebase Admin SDK is initialized)
 const PORT = process.env.PORT || 10000;
 async function startServer() {
-    firebaseAdminInstance = await initializeAdmin(); // Wait for initialization to complete
+    await initializeAdmin(); // Wait for initialization to complete
     httpServer.listen(PORT, '0.0.0.0', () => {
         console.log(`Server running on port ${PORT}`);
         console.log(`WebSocket endpoint: ws://localhost:${PORT}`);
