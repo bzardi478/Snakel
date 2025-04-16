@@ -187,8 +187,11 @@ io.on('connection', (socket) => {
     socket.on('chat message', (data) => {
         const player = gameState.players.get(socket.id);
         if (player && data.message) {
+            console.log(`Server received chat message from ${player.name}: ${data.message}`);
             io.emit('chat message', { name: player.name, message: data.message });
-            console.log(`Chat message from ${player.name}: ${data.message}`);
+            console.log(`Server broadcasted chat message: { name: ${player.name}, message: ${data.message} }`);
+        } else {
+            console.log('Server received invalid chat message or player not found.');
         }
     });
 
