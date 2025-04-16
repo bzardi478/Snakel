@@ -31,6 +31,9 @@ const io = new Server(httpServer, {
 let firebaseAdminInstance = null; // Declare firebaseAdminInstance at the top
 let firebaseAuthService = null; // Declare firebaseAuthService at the top
 
+// Map to store chat names associated with socket IDs (before playerRegistered)
+const socketToChatName = new Map();
+
 async function initializeAdmin() {
     const serviceAccountEnv = process.env.FIREBASE_SERVICE_ACCOUNT;
 
@@ -129,6 +132,7 @@ io.on('connection', (socket) => {
     // Player Initialization and Chat Name
     socket.on('startGameRequest', (data) => {
         const chatName = data.chatName;
+        socketToChatName.set(socket.id, chatName); // Store chat name associated with socket ID
         try {
             const playerId = `player_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
             const player = {
@@ -183,15 +187,21 @@ io.on('connection', (socket) => {
         }
     });
 
-    // Chat Implementation
+    // Chat Implementation (Handling early messages)
     socket.on('chat message', (data) => {
-        const player = gameState.players.get(socket.id);
-        if (player && data.message) {
+        const playerName = socketToChatName.get(socket.id);
+        if (playerName && data.message) {
+            console.log(`Server received chat message from (potentially early) ${playerName}: ${data.message}`);
+            io.emit('chat message', { name: playerName, message: data.message });
+            console.log(`Server broadcasted chat message: { name: ${playerName}, message: ${data.message} }`);
+        } else if (gameState.players.has(socket.id) && gameState.players.get(socket.id).name && data.message) {
+            // Handle messages after playerRegistered
+            const player = gameState.players.get(socket.id);
             console.log(`Server received chat message from ${player.name}: ${data.message}`);
             io.emit('chat message', { name: player.name, message: data.message });
             console.log(`Server broadcasted chat message: { name: ${player.name}, message: ${data.message} }`);
         } else {
-            console.log('Server received invalid chat message or player not found.');
+            console.log('Server received invalid chat message or player not fully registered.');
         }
     });
 
@@ -202,6 +212,10 @@ io.on('connection', (socket) => {
             gameState.players.delete(socket.id);
             io.emit('playerDisconnected', player.id);
             console.log(`Player disconnected: ${player.id}`);
+            socketToChatName.delete(socket.id); // Clean up chat name mapping
+        } else if (socketToChatName.has(socket.id)) {
+            console.log(`Socket disconnected before full registration: ${socket.id}`);
+            socketToChatName.delete(socket.id); // Clean up chat name mapping
         }
     });
 
@@ -221,6 +235,7 @@ setInterval(() => {
         gameState.players.delete(socketId);
         io.emit('playerDisconnected', player.id);
         console.log(`Removed inactive player: ${player.id}`);
+        socketToChatName.delete(socketId); // Clean up chat name mapping for inactive players
     });
 }, 60000); // Run every minute
 
