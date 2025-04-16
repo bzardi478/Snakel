@@ -1,4 +1,3 @@
-// server.js
 require('dotenv').config({ path: '/.env' });
 const express = require('express');
 const { createServer } = require('node:http');
@@ -142,7 +141,7 @@ io.on('connection', (socket) => {
                 position: { x: 400, y: 300 },
                 score: 0,
                 lastActive: Date.now(),
-                name: chatName // Store the chat name
+                name: chatName // Store the chat name in the player object as well
             };
 
             gameState.players.set(socket.id, player);
@@ -192,16 +191,17 @@ io.on('connection', (socket) => {
     // Chat Implementation (Handling early messages)
     socket.on('chat message', (data) => {
         console.log(`Server received chat message event from ${socket.id}:`, data);
-        const playerName = socketToChatName.get(socket.id);
-        console.log(`Server checking socketToChatName for ${socket.id}:`, playerName);
+        const playerNameFromSocketMap = socketToChatName.get(socket.id);
+        const playerFromGameState = gameState.players.get(socket.id);
+        const playerNameFromGameState = playerFromGameState ? playerFromGameState.name : undefined;
+        const playerName = playerNameFromSocketMap || playerNameFromGameState; // Prioritize socketToChatName
+
+        console.log(`Server checking socketToChatName for ${socket.id}:`, playerNameFromSocketMap);
+        console.log(`Server checking gameState.players for ${socket.id}:`, playerNameFromGameState);
+
         if (playerName && data.message) {
-            console.log(`Server broadcasting early chat message from ${playerName}: ${data.message}`);
+            console.log(`Server broadcasting chat message from ${playerName}: ${data.message}`);
             io.emit('chat message', { name: playerName, message: data.message });
-        } else if (gameState.players.has(socket.id) && gameState.players.get(socket.id).name && data.message) {
-            // Handle messages after playerRegistered
-            const player = gameState.players.get(socket.id);
-            console.log(`Server broadcasting chat message from registered player ${player.name}: ${data.message}`);
-            io.emit('chat message', { name: player.name, message: data.message });
         } else {
             console.log('Server received invalid chat message or player not fully registered.');
             console.log('socketToChatName.has(socket.id):', socketToChatName.has(socket.id));
