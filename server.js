@@ -100,16 +100,19 @@ io.on('connection', (socket) => {
 
     // Authentication Event Listeners
     socket.on('register', async (data, callback) => {
+        console.log('Server received registration request:', data); // Log registration request
         if (!firebaseAdminInstance || !firebaseAuthService) {
             console.error('Firebase Admin SDK or Auth service not initialized for registration.');
             return callback({ success: false, message: 'Server error: Firebase not initialized.' });
         }
         auth.registerUser(firebaseAuthService, firebaseAdminInstance.database(), data.username, data.password, (result) => {
+            console.log('Server registration result:', result); // Log registration result
             callback(result);
         });
     });
 
     socket.on('login', async (loginData, callback) => {
+        console.log('Server received login request:', loginData); // Log login request
         if (!firebaseAuthService) {
             return callback({ success: false, message: 'Server error: Firebase Auth not initialized.' });
         }
@@ -118,6 +121,7 @@ io.on('connection', (socket) => {
         }
         try {
             const userRecord = await firebaseAuthService.getUserByEmail(loginData.username);
+            console.log('Server login successful for user:', userRecord.uid); // Log successful login
             // For now, we are skipping password verification and email verification
             callback({ success: true, message: 'Login successful', userId: userRecord.uid });
         } catch (error) {
@@ -128,6 +132,7 @@ io.on('connection', (socket) => {
 
     // Player Initialization and Chat Name
     socket.on('startGameRequest', (data) => {
+        console.log('Server received startGameRequest:', data); // Log startGameRequest
         const chatName = data.chatName;
         try {
             const playerId = `player_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -151,6 +156,7 @@ io.on('connection', (socket) => {
 
     // Movement Updates
     socket.on('move', (movement) => {
+        // No specific log here as it's a frequent event
         const player = gameState.players.get(socket.id);
         if (player) {
             player.position = movement;
@@ -164,6 +170,7 @@ io.on('connection', (socket) => {
 
     // Food Collection
     socket.on('collectFood', (foodId) => {
+        console.log('Server received collectFood request for:', foodId, 'from:', socket.id); // Log food collection
         const player = gameState.players.get(socket.id);
         if (player) {
             player.score += 10;
@@ -185,7 +192,7 @@ io.on('connection', (socket) => {
 
     // Chat Message Handling
     socket.on('chat message', (data) => {
-        console.log('Server received chat message:', data);
+        console.log('Server received chat message:', data, 'from:', socket.id); // Log received chat message with sender socket ID
         io.emit('chat message', data); // Broadcast to all connected clients
     });
 
