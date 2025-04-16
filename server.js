@@ -229,7 +229,7 @@ process.on('SIGTERM', () => {
 
     // Notify all clients
     io.emit('serverShutdown');
-
+    
     // Close connections
     io.close(() => {
         httpServer.close(() => {
