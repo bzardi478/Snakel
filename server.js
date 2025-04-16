@@ -183,6 +183,15 @@ io.on('connection', (socket) => {
         }
     });
 
+    // Chat Implementation
+    socket.on('chat message', (data) => {
+        const player = gameState.players.get(socket.id);
+        if (player && data.message) {
+            io.emit('chat message', { name: player.name, message: data.message });
+            console.log(`Chat message from ${player.name}: ${data.message}`);
+        }
+    });
+
     // Disconnection Handling
     socket.on('disconnect', () => {
         const player = gameState.players.get(socket.id);
