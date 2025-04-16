@@ -1,3 +1,4 @@
+// server.js
 require('dotenv').config({ path: '/.env' });
 const express = require('express');
 const { createServer } = require('node:http');
@@ -133,6 +134,7 @@ io.on('connection', (socket) => {
     socket.on('startGameRequest', (data) => {
         const chatName = data.chatName;
         socketToChatName.set(socket.id, chatName); // Store chat name associated with socket ID
+        console.log(`Server received startGameRequest from ${socket.id} with chatName: ${chatName}`);
         try {
             const playerId = `player_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
             const player = {
@@ -189,19 +191,24 @@ io.on('connection', (socket) => {
 
     // Chat Implementation (Handling early messages)
     socket.on('chat message', (data) => {
+        console.log(`Server received chat message event from ${socket.id}:`, data);
         const playerName = socketToChatName.get(socket.id);
+        console.log(`Server checking socketToChatName for ${socket.id}:`, playerName);
         if (playerName && data.message) {
-            console.log(`Server received chat message from (potentially early) ${playerName}: ${data.message}`);
+            console.log(`Server broadcasting early chat message from ${playerName}: ${data.message}`);
             io.emit('chat message', { name: playerName, message: data.message });
-            console.log(`Server broadcasted chat message: { name: ${playerName}, message: ${data.message} }`);
         } else if (gameState.players.has(socket.id) && gameState.players.get(socket.id).name && data.message) {
             // Handle messages after playerRegistered
             const player = gameState.players.get(socket.id);
-            console.log(`Server received chat message from ${player.name}: ${data.message}`);
+            console.log(`Server broadcasting chat message from registered player ${player.name}: ${data.message}`);
             io.emit('chat message', { name: player.name, message: data.message });
-            console.log(`Server broadcasted chat message: { name: ${player.name}, message: ${data.message} }`);
         } else {
             console.log('Server received invalid chat message or player not fully registered.');
+            console.log('socketToChatName.has(socket.id):', socketToChatName.has(socket.id));
+            console.log('gameState.players.has(socket.id):', gameState.players.has(socket.id));
+            if (gameState.players.has(socket.id)) {
+                console.log('gameState.players.get(socket.id).name:', gameState.players.get(socket.id)?.name);
+            }
         }
     });
 
