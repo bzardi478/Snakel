@@ -183,6 +183,12 @@ io.on('connection', (socket) => {
         }
     });
 
+    // Chat Message Handling
+    socket.on('chat message', (data) => {
+        console.log('Server received chat message:', data);
+        io.emit('chat message', data); // Broadcast to all connected clients
+    });
+
     // Disconnection Handling
     socket.on('disconnect', () => {
         const player = gameState.players.get(socket.id);
@@ -229,7 +235,7 @@ process.on('SIGTERM', () => {
 
     // Notify all clients
     io.emit('serverShutdown');
-    
+
     // Close connections
     io.close(() => {
         httpServer.close(() => {
