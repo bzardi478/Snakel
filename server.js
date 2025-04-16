@@ -1,4 +1,3 @@
-// server.js
 require('dotenv').config({ path: '/.env' });
 const express = require('express');
 const { createServer } = require('node:http');
@@ -31,9 +30,6 @@ const io = new Server(httpServer, {
 
 let firebaseAdminInstance = null; // Declare firebaseAdminInstance at the top
 let firebaseAuthService = null; // Declare firebaseAuthService at the top
-
-// Map to store usernames associated with socket IDs
-const socketToUsername = new Map();
 
 async function initializeAdmin() {
     const serviceAccountEnv = process.env.FIREBASE_SERVICE_ACCOUNT;
@@ -103,15 +99,12 @@ io.on('connection', (socket) => {
     console.log(`Client connected: ${socket.id}`);
 
     // Authentication Event Listeners
-    socket.on('register', async (regData, callback) => {
+    socket.on('register', async (data, callback) => {
         if (!firebaseAdminInstance || !firebaseAuthService) {
             console.error('Firebase Admin SDK or Auth service not initialized for registration.');
             return callback({ success: false, message: 'Server error: Firebase not initialized.' });
         }
-        auth.registerUser(firebaseAuthService, firebaseAdminInstance.database(), regData.username, regData.password, (result) => {
-            if (result.success) {
-                socketToUsername.set(socket.id, regData.username); // Associate username
-            }
+        auth.registerUser(firebaseAuthService, firebaseAdminInstance.database(), data.username, data.password, (result) => {
             callback(result);
         });
     });
@@ -125,7 +118,7 @@ io.on('connection', (socket) => {
         }
         try {
             const userRecord = await firebaseAuthService.getUserByEmail(loginData.username);
-            socketToUsername.set(socket.id, loginData.username); // Associate username
+            // For now, we are skipping password verification and email verification
             callback({ success: true, message: 'Login successful', userId: userRecord.uid });
         } catch (error) {
             console.error('Error during login:', error);
@@ -136,8 +129,6 @@ io.on('connection', (socket) => {
     // Player Initialization and Chat Name
     socket.on('startGameRequest', (data) => {
         const chatName = data.chatName;
-        const username = socketToUsername.get(socket.id);
-        console.log(`Server received startGameRequest from ${socket.id} (${username}) with chatName: ${chatName}`);
         try {
             const playerId = `player_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
             const player = {
@@ -145,16 +136,13 @@ io.on('connection', (socket) => {
                 position: { x: 400, y: 300 },
                 score: 0,
                 lastActive: Date.now(),
-                name: chatName, // Keep the chat name for display
-                username: username // Store the authenticated username
+                name: chatName // Store the chat name
             };
 
             gameState.players.set(socket.id, player);
 
             socket.emit('playerRegistered', { playerId, initialFood: gameState.foods, otherPlayers: Array.from(gameState.players.values()).map(p => ({ id: p.id, position: p.position, name: p.name })) });
-            socket.broadcast.emit('newPlayer', { id: player.id, position: player.position, name: player.name, username: player.username }); // Optionally broadcast username
-            socket.emit('chatReady'); // Emit chat ready after player is set up
-
+            socket.broadcast.emit('newPlayer', { id: player.id, position: player.position, name: player.name });
         } catch (error) {
             console.error('Registration error:', error);
             socket.emit('registrationFailed', { error: error.message });
@@ -195,25 +183,13 @@ io.on('connection', (socket) => {
         }
     });
 
-    // Chat Implementation
-    socket.on('chat message', (data) => {
-        const username = socketToUsername.get(socket.id);
-        if (username && data.message) {
-            console.log(`Server received chat message from ${username} (${data.name}): ${data.message}`);
-            io.emit('chat message', { name: data.name, message: data.message, senderUsername: username }); // Optionally include senderUsername
-        } else {
-            console.log('Server received chat message from unknown or unregistered user.');
-        }
-    });
-
     // Disconnection Handling
     socket.on('disconnect', () => {
-        console.log(`Client disconnected: ${socket.id}`);
-        socketToUsername.delete(socket.id); // Clean up username mapping
         const player = gameState.players.get(socket.id);
         if (player) {
             gameState.players.delete(socket.id);
             io.emit('playerDisconnected', player.id);
+            console.log(`Player disconnected: ${player.id}`);
         }
     });
 
@@ -232,7 +208,7 @@ setInterval(() => {
     inactivePlayers.forEach(([socketId, player]) => {
         gameState.players.delete(socketId);
         io.emit('playerDisconnected', player.id);
-        socketToUsername.delete(socketId); // Clean up username mapping for inactive players
+        console.log(`Removed inactive player: ${player.id}`);
     });
 }, 60000); // Run every minute
 
