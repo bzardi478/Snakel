@@ -193,6 +193,7 @@ io.on('connection', (socket) => {
     // Chat Message Handling
     socket.on('chat message', (data) => {
         console.log('Server received chat message:', data, 'from:', socket.id); // Log received chat message with sender socket ID
+        console.log('Server received chat message data:', data); // Log the entire data object
         io.emit('chat message', data); // Broadcast to all connected clients
     });
 
