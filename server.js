@@ -150,6 +150,7 @@ io.on('connection', (socket) => {
     
             // **SINGLE EMIT - Includes initialSnake!**
             if (player && player.position) {  //  SAFEGUARD
+                console.log('Server: player.position before emitting initialGameState:', player.position);
                 socket.emit('initialGameState', {
                     initialFood: gameState.foods,
                     initialSnake: {
