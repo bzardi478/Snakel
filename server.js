@@ -157,6 +157,17 @@ io.on('connection', (socket) => {
             console.error('Server: Registration error:', error);
             socket.emit('registrationFailed', { error: error.message });
         }
+
+
+        socket.emit('initialGameState', {
+            initialFood: gameState.foods,
+            otherPlayers: Array.from(gameState.players).map(p => ({ id: p.id, position: p.position, name: p.name }))
+        });
+    
+        console.log('Server: Sent initialGameState:', {  //  DEBUG
+            initialFood: gameState.foods,
+            otherPlayers: Array.from(gameState.players).map(p => ({ id: p.id, position: p.position, name: p.name }))
+        });
     });
     // Movement Updates
     socket.on('move', (movement) => {
@@ -171,6 +182,8 @@ io.on('connection', (socket) => {
             });
         }
     });
+
+    
 
     // Food Collection
     socket.on('collectFood', (foodId) => {
