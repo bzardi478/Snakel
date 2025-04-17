@@ -168,6 +168,22 @@ io.on('connection', (socket) => {
             initialFood: gameState.foods,
             otherPlayers: Array.from(gameState.players).map(p => ({ id: p.id, position: p.position, name: p.name }))
         });
+
+
+        socket.emit('initialGameState', {
+            initialFood: gameState.foods,
+            initialSnake: {  //  ADD THIS
+                x: player.position.x,
+                y: player.position.y
+            },
+            otherPlayers: Array.from(gameState.players.values()).map(p => ({ id: p.id, position: p.position, name: p.name }))
+        });
+    
+        console.log('Server: Sent initialGameState:', {
+            initialFood: gameState.foods,
+            initialSnake: { x: player.position.x, y: player.position.y },  //  DEBUG
+            otherPlayers: Array.from(gameState.players.values()).map(p => ({ id: p.id, position: p.position, name: p.name }))
+        })
     });
     // Movement Updates
     socket.on('move', (movement) => {
