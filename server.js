@@ -182,11 +182,12 @@ io.on('connection', (socket) => {
         // No specific log here as it's a frequent event
         const player = gameState.players.get(socket.id);
         if (player) {
-            player.position = movement;
+            player.position.x = movement.x;  //  <--  UPDATE X
+            player.position.y = movement.y;  //  <--  UPDATE Y
             player.lastActive = Date.now();
             socket.broadcast.emit('playerMoved', {
                 playerId: player.id,
-                position: movement
+                position: { x: movement.x, y: movement.y }  //  SEND AS OBJECT
             });
         }
     });
