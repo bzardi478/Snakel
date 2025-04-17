@@ -192,15 +192,6 @@ io.on('connection', (socket) => {
         }
     });
 
-
-    socket.on('playerMoved', (data) => {
-        if (data.playerId === playerId) {  //  <--  CHECK IF IT'S THIS CLIENT'S SNAKE
-            snake[0] = { x: data.position.x, y: data.position.y };  //  UPDATE HEAD POSITION
-        } else {
-            otherPlayers[data.playerId] = data.position;  // Update other players
-        }
-    });
-
     
 
     // Food Collection
