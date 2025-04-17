@@ -180,16 +180,24 @@ io.on('connection', (socket) => {
     });
     // Movement Updates
     socket.on('move', (movement) => {
-        // No specific log here as it's a frequent event
         const player = gameState.players.get(socket.id);
         if (player) {
-            player.position.x = movement.x;  //  <--  UPDATE X
-            player.position.y = movement.y;  //  <--  UPDATE Y
+            player.position.x = movement.x;
+            player.position.y = movement.y;
             player.lastActive = Date.now();
-            socket.broadcast.emit('playerMoved', {
+            socket.broadcast.emit('playerMoved', {  //  <--  BROADCAST TO OTHER CLIENTS
                 playerId: player.id,
-                position: { x: movement.x, y: movement.y }  //  SEND AS OBJECT
+                position: { x: movement.x, y: movement.y }
             });
+        }
+    });
+
+
+    socket.on('playerMoved', (data) => {
+        if (data.playerId === playerId) {  //  <--  CHECK IF IT'S THIS CLIENT'S SNAKE
+            snake[0] = { x: data.position.x, y: data.position.y };  //  UPDATE HEAD POSITION
+        } else {
+            otherPlayers[data.playerId] = data.position;  // Update other players
         }
     });
 
