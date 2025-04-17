@@ -132,7 +132,7 @@ io.on('connection', (socket) => {
 
     // Player Initialization and Chat Name
     socket.on('startGameRequest', (data) => {
-        console.log('Server received startGameRequest:', data); // Log startGameRequest
+        console.log('Server received startGameRequest:', data);
         const chatName = data.chatName;
         try {
             const playerId = `player_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -141,19 +141,20 @@ io.on('connection', (socket) => {
                 position: { x: 400, y: 300 },
                 score: 0,
                 lastActive: Date.now(),
-                name: chatName // Store the chat name
+                name: chatName
             };
-
+    
             gameState.players.set(socket.id, player);
-
-            socket.emit('playerRegistered', { playerId, initialFood: gameState.foods, otherPlayers: Array.from(gameState.players.values()).map(p => ({ id: p.id, position: p.position, name: p.name })) });
+    
+            socket.emit('playerRegistered', { playerId }); // Send ONLY playerId FIRST
+            socket.emit('initialGameState', { initialFood: gameState.foods, otherPlayers: Array.from(gameState.players.values()).map(p => ({ id: p.id, position: p.position, name: p.name })) }); // THEN send game state
             socket.broadcast.emit('newPlayer', { id: player.id, position: player.position, name: player.name });
+    
         } catch (error) {
             console.error('Registration error:', error);
             socket.emit('registrationFailed', { error: error.message });
         }
     });
-
     // Movement Updates
     socket.on('move', (movement) => {
         // No specific log here as it's a frequent event
