@@ -185,10 +185,12 @@ io.on('connection', (socket) => {
             player.position.x = movement.x;
             player.position.y = movement.y;
             player.lastActive = Date.now();
-            socket.broadcast.emit('playerMoved', {  //  <--  BROADCAST TO OTHER CLIENTS
+            console.log(`Server: Player <span class="math-inline">\{player\.id\} moved to x\=</span>{player.position.x}, y=${player.position.y}`);  //  LOGGING
+            socket.broadcast.emit('playerMoved', {
                 playerId: player.id,
                 position: { x: movement.x, y: movement.y }
             });
+            console.log(`Server: Emitting playerMoved for ${player.id} with position:`, { x: movement.x, y: movement.y });  //  LOGGING
         }
     });
 
