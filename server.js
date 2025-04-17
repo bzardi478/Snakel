@@ -3,8 +3,8 @@ const express = require('express');
 const { createServer } = require('node:http');
 const { Server } = require('socket.io');
 const path = require('path');
-const auth = require('./auth'); // Import auth.js
-const admin = require('firebase-admin'); // Import Firebase Admin SDK
+const auth = require('./auth');
+const admin = require('firebase-admin');
 
 const app = express();
 const httpServer = createServer(app);
@@ -13,7 +13,7 @@ const httpServer = createServer(app);
 const io = new Server(httpServer, {
     cors: {
         origin: [
-            "https://snakel.firebaseapp.com", // Your Firebase hosting URL
+            "https://snakel.firebaseapp.com",
             "http://localhost:3000",
             "http://127.0.0.1:5500"
         ],
@@ -25,11 +25,11 @@ const io = new Server(httpServer, {
     pingTimeout: 60000,
     cookie: false,
     serveClient: false,
-    allowEIO3: true // Compatibility with older clients
+    allowEIO3: true
 });
 
-let firebaseAdminInstance = null; // Declare firebaseAdminInstance at the top
-let firebaseAuthService = null; // Declare firebaseAuthService at the top
+let firebaseAdminInstance = null;
+let firebaseAuthService = null;
 
 async function initializeAdmin() {
     const serviceAccountEnv = process.env.FIREBASE_SERVICE_ACCOUNT;
@@ -43,7 +43,7 @@ async function initializeAdmin() {
                 databaseURL: process.env.FIREBASE_DATABASE_URL
             });
             firebaseAdminInstance = app;
-            firebaseAuthService = admin.auth(app); // Initialize firebaseAuthService
+            firebaseAuthService = admin.auth(app);
             return app;
         } catch (error) {
             console.error('Error parsing FIREBASE_SERVICE_ACCOUNT:', error);
@@ -96,23 +96,23 @@ function generateInitialFood(count) {
 
 // Connection Management
 io.on('connection', (socket) => {
-    console.log(`Client connected: ${socket.id}`);
+    console.log(`Server: Client connected: ${socket.id}`);
 
     // Authentication Event Listeners
     socket.on('register', async (data, callback) => {
-        console.log('Server received registration request:', data); // Log registration request
+        console.log('Server: Received registration request:', data);
         if (!firebaseAdminInstance || !firebaseAuthService) {
-            console.error('Firebase Admin SDK or Auth service not initialized for registration.');
+            console.error('Server: Firebase Admin SDK or Auth service not initialized for registration.');
             return callback({ success: false, message: 'Server error: Firebase not initialized.' });
         }
         auth.registerUser(firebaseAuthService, firebaseAdminInstance.database(), data.username, data.password, (result) => {
-            console.log('Server registration result:', result); // Log registration result
+            console.log('Server: Registration result:', result);
             callback(result);
         });
     });
 
     socket.on('login', async (loginData, callback) => {
-        console.log('Server received login request:', loginData); // Log login request
+        console.log('Server: Received login request:', loginData);
         if (!firebaseAuthService) {
             return callback({ success: false, message: 'Server error: Firebase Auth not initialized.' });
         }
@@ -121,18 +121,18 @@ io.on('connection', (socket) => {
         }
         try {
             const userRecord = await firebaseAuthService.getUserByEmail(loginData.username);
-            console.log('Server login successful for user:', userRecord.uid); // Log successful login
+            console.log('Server: Login successful for user:', userRecord.uid);
             // For now, we are skipping password verification and email verification
             callback({ success: true, message: 'Login successful', userId: userRecord.uid });
         } catch (error) {
-            console.error('Error during login:', error);
+            console.error('Server: Error during login:', error);
             callback({ success: false, message: 'Login failed', error: error.message });
         }
     });
 
     // Player Initialization and Chat Name
     socket.on('startGameRequest', (data) => {
-        console.log('Server received startGameRequest:', data);
+        console.log('Server: Received startGameRequest:', data);
         const chatName = data.chatName;
         try {
             const playerId = `player_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -143,15 +143,18 @@ io.on('connection', (socket) => {
                 lastActive: Date.now(),
                 name: chatName
             };
-    
+
             gameState.players.set(socket.id, player);
-    
-            socket.emit('playerRegistered', { playerId }); // Send ONLY playerId FIRST
-            socket.emit('initialGameState', { initialFood: gameState.foods, otherPlayers: Array.from(gameState.players.values()).map(p => ({ id: p.id, position: p.position, name: p.name })) }); // THEN send game state
-            socket.broadcast.emit('newPlayer', { id: player.id, position: player.position, name: player.name });
-    
+
+            socket.emit('playerRegistered', { playerId });
+            socket.emit('initialGameState', { initialFood: gameState.foods, otherPlayers: Array.from(gameState.players.values()).map(p => ({ id: p.id, position: p.position, name: p.name })) });
+
+            // **CRUCIAL LOG**
+            console.log('Server: Emitting newPlayer event:', { id: player.id, position: player.position, name: player.name });
+            io.emit('newPlayer', { id: player.id, position: player.position, name: player.name });
+
         } catch (error) {
-            console.error('Registration error:', error);
+            console.error('Server: Registration error:', error);
             socket.emit('registrationFailed', { error: error.message });
         }
     });
@@ -171,7 +174,7 @@ io.on('connection', (socket) => {
 
     // Food Collection
     socket.on('collectFood', (foodId) => {
-        console.log('Server received collectFood request for:', foodId, 'from:', socket.id); // Log food collection
+        console.log('Server: Received collectFood request for:', foodId, 'from:', socket.id);
         const player = gameState.players.get(socket.id);
         if (player) {
             player.score += 10;
@@ -185,17 +188,17 @@ io.on('connection', (socket) => {
             });
 
             io.emit('foodUpdate', {
-                removed: [foodId], // Ensure removed is an array for consistency
-                added: [gameState.foods[gameState.foods.length - 1]] // Ensure added is an array for consistency
+                removed: [foodId],
+                added: [gameState.foods[gameState.foods.length - 1]]
             });
         }
     });
 
     // Chat Message Handling
     socket.on('chat message', (data) => {
-        console.log('Server received chat message:', data, 'from:', socket.id); // Log received chat message with sender socket ID
-        console.log('Server received chat message data:', data); // Log the entire data object
-        io.emit('chat message', data); // Broadcast to all connected clients
+        console.log('Server: Received chat message:', data, 'from:', socket.id);
+        console.log('Server: Received chat message data:', data);
+        io.emit('chat message', data);
     });
 
     // Disconnection Handling
@@ -203,14 +206,18 @@ io.on('connection', (socket) => {
         const player = gameState.players.get(socket.id);
         if (player) {
             gameState.players.delete(socket.id);
+
+            // **CRUCIAL LOG**
+            console.log('Server: Emitting playerDisconnected event:', player.id);
             io.emit('playerDisconnected', player.id);
-            console.log(`Player disconnected: ${player.id}`);
+
+            console.log(`Server: Player disconnected: ${player.id}`);
         }
     });
 
     // Error Handling
     socket.on('error', (error) => {
-        console.error(`Socket error (${socket.id}):`, error);
+        console.error(`Server: Socket error (${socket.id}):`, error);
     });
 });
 
@@ -223,14 +230,14 @@ setInterval(() => {
     inactivePlayers.forEach(([socketId, player]) => {
         gameState.players.delete(socketId);
         io.emit('playerDisconnected', player.id);
-        console.log(`Removed inactive player: ${player.id}`);
+        console.log(`Server: Removed inactive player: ${player.id}`);
     });
 }, 60000); // Run every minute
 
 // Server Startup (ONLY after Firebase Admin SDK is initialized)
 const PORT = process.env.PORT || 10000;
 async function startServer() {
-    await initializeAdmin(); // Wait for initialization to complete
+    await initializeAdmin();
     httpServer.listen(PORT, '0.0.0.0', () => {
         console.log(`Server running on port ${PORT}`);
         console.log(`WebSocket endpoint: ws://localhost:${PORT}`);
