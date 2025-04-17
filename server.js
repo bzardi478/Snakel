@@ -143,47 +143,39 @@ io.on('connection', (socket) => {
                 lastActive: Date.now(),
                 name: chatName
             };
-
+    
             gameState.players.set(socket.id, player);
-
+    
             socket.emit('playerRegistered', { playerId });
-            socket.emit('initialGameState', { initialFood: gameState.foods, otherPlayers: Array.from(gameState.players.values()).map(p => ({ id: p.id, position: p.position, name: p.name })) });
-
-            // **CRUCIAL LOG**
+    
+            // **SINGLE EMIT - Includes initialSnake!**
+            if (player && player.position) {  //  SAFEGUARD
+                socket.emit('initialGameState', {
+                    initialFood: gameState.foods,
+                    initialSnake: {
+                        x: player.position.x,
+                        y: player.position.y
+                    },
+                    otherPlayers: Array.from(gameState.players.values()).map(p => ({ id: p.id, position: p.position, name: p.name }))  //  .values()!
+                });
+                console.log('Server: Sent initialGameState:', {  //  DEBUG
+                    initialFood: gameState.foods,
+                    initialSnake: { x: player.position.x, y: player.position.y },
+                    otherPlayers: Array.from(gameState.players.values()).map(p => ({ id: p.id, position: p.position, name: p.name }))
+                });
+            } else {
+                console.error("Error: Player or player.position is undefined!");
+                //  Handle the error appropriately (e.g., send an error to the client)
+            }
+    
+            // **ONE TIME - newPlayer after initialGameState**
             console.log('Server: Emitting newPlayer event:', { id: player.id, position: player.position, name: player.name });
             io.emit('newPlayer', { id: player.id, position: player.position, name: player.name });
-
+    
         } catch (error) {
             console.error('Server: Registration error:', error);
             socket.emit('registrationFailed', { error: error.message });
         }
-
-
-        socket.emit('initialGameState', {
-            initialFood: gameState.foods,
-            otherPlayers: Array.from(gameState.players).map(p => ({ id: p.id, position: p.position, name: p.name }))
-        });
-    
-        console.log('Server: Sent initialGameState:', {  //  DEBUG
-            initialFood: gameState.foods,
-            otherPlayers: Array.from(gameState.players).map(p => ({ id: p.id, position: p.position, name: p.name }))
-        });
-
-
-        socket.emit('initialGameState', {
-            initialFood: gameState.foods,
-            initialSnake: {  //  ADD THIS
-                x: player.position.x,
-                y: player.position.y
-            },
-            otherPlayers: Array.from(gameState.players.values()).map(p => ({ id: p.id, position: p.position, name: p.name }))
-        });
-    
-        console.log('Server: Sent initialGameState:', {
-            initialFood: gameState.foods,
-            initialSnake: { x: player.position.x, y: player.position.y },  //  DEBUG
-            otherPlayers: Array.from(gameState.players.values()).map(p => ({ id: p.id, position: p.position, name: p.name }))
-        })
     });
     // Movement Updates
     socket.on('move', (movement) => {
