@@ -180,17 +180,18 @@ io.on('connection', (socket) => {
     });
     // Movement Updates
     socket.on('move', (movement) => {
+        
         const player = gameState.players.get(socket.id);
         if (player) {
             player.position.x = movement.x;
             player.position.y = movement.y;
             player.lastActive = Date.now();
-            console.log(`Server: Player <span class="math-inline">\{player\.id\} moved to x\=</span>{player.position.x}, y=${player.position.y}`);  //  LOGGING
-            socket.broadcast.emit('playerMoved', {
+            console.log(`Server: Player ${player.id} moved to x=${player.position.x}, y=${player.position.y}`);
+            io.emit('playerMoved', { // Changed from socket.broadcast.emit to io.emit
                 playerId: player.id,
                 position: { x: movement.x, y: movement.y }
             });
-            console.log(`Server: Emitting playerMoved for ${player.id} with position:`, { x: movement.x, y: movement.y });  //  LOGGING
+            console.log(`Server: Emitting playerMoved for ${player.id} with position:`, { x: movement.x, y: movement.y });
         }
     });
 
