@@ -186,12 +186,10 @@ io.on('connection', (socket) => {
             player.position.x = movement.x;
             player.position.y = movement.y;
             player.lastActive = Date.now();
-            console.log(`Server: Player ${player.id} moved to x=${player.position.x}, y=${player.position.y}`);
             io.emit('playerMoved', { // Changed from socket.broadcast.emit to io.emit
                 playerId: player.id,
                 position: { x: movement.x, y: movement.y }
             });
-            console.log(`Server: Emitting playerMoved for ${player.id} with position:`, { x: movement.x, y: movement.y });
         }
     });
 
@@ -203,19 +201,26 @@ io.on('connection', (socket) => {
         const player = gameState.players.get(socket.id);
         if (player) {
             player.score += 10;
+    
+            // Increase snake length (we'll just track a 'segmentsToAdd' counter for simplicity)
+            player.segmentsToAdd = (player.segmentsToAdd || 0) + 3; // Add, for example, 3 segments
+    
             gameState.foods = gameState.foods.filter(food => food.id !== foodId);
-
+    
             // Add new food
             gameState.foods.push({
                 x: Math.floor(Math.random() * 1000),
                 y: Math.floor(Math.random() * 800),
                 id: `food_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
             });
-
+    
             io.emit('foodUpdate', {
                 removed: [foodId],
                 added: [gameState.foods[gameState.foods.length - 1]]
             });
+    
+            // Inform the specific player to grow their snake
+            socket.emit('growSnake');
         }
     });
 
