@@ -231,6 +231,11 @@ io.on('connection', (socket) => {
         io.emit('chat message', data);
     });
 
+
+    socket.on('ping', () => {
+        socket.emit('pong'); // Immediately send a 'pong' back to the client
+    })
+
     // Disconnection Handling
     socket.on('disconnect', () => {
         const player = gameState.players.get(socket.id);
