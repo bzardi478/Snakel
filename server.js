@@ -5,6 +5,7 @@ const { Server } = require('socket.io');
 const path = require('path');
 const auth = require('./auth');
 const admin = require('firebase-admin');
+const { console } = require('node:inspector');
 
 const app = express();
 const httpServer = createServer(app);
@@ -101,6 +102,7 @@ io.on('connection', (socket) => {
     // **ADD THESE EVENT LISTENERS HERE:**
     console.log("unity about to be called")
     socket.on('logFromUnity', (data) => {
+        console.log("From unity: ")
         console.log('Server: Log from Unity -', data.message, 'Client ID:', socket.id);
     });
 
