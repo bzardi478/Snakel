@@ -99,7 +99,7 @@ io.on('connection', (socket) => {
     console.log(`Server: Client connected: ${socket.id}`);
 
     // **ADD THESE EVENT LISTENERS HERE:**
-
+    console.log("unity about to be called")
     socket.on('logFromUnity', (data) => {
         console.log('Server: Log from Unity -', data.message, 'Client ID:', socket.id);
     });
