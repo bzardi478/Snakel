@@ -98,6 +98,28 @@ function generateInitialFood(count) {
 io.on('connection', (socket) => {
     console.log(`Server: Client connected: ${socket.id}`);
 
+    // **ADD THESE EVENT LISTENERS HERE:**
+
+    socket.on('logFromUnity', (data) => {
+        console.log('Server: Log from Unity -', data.message, 'Client ID:', socket.id);
+    });
+
+    socket.on('playerConnected', (data) => {
+        console.log('Server: Received playerConnected event:', data, 'Client ID:', socket.id);
+        if (data && data.clientType === 'unity') {
+            console.log('Server: Connection identified as coming from Unity. Client ID:', socket.id);
+        } else {
+            console.log('Server: Connection not identified as coming from Unity or clientType is missing. Client ID:', socket.id);
+        }
+
+        // You might want to assign the playerId received from Unity to the socket or player state here
+        // For example:
+        // const player = gameState.players.get(socket.id);
+        // if (player) {
+        //     player.id = data.playerId;
+        // }
+    });
+
     // Authentication Event Listeners
     socket.on('register', async (data, callback) => {
         console.log('Server: Received registration request:', data);
@@ -143,13 +165,13 @@ io.on('connection', (socket) => {
                 lastActive: Date.now(),
                 name: chatName
             };
-    
+
             gameState.players.set(socket.id, player);
-    
+
             socket.emit('playerRegistered', { playerId });
-    
+
             // **SINGLE EMIT - Includes initialSnake!**
-            if (player && player.position) {  //  SAFEGUARD
+            if (player && player.position) {    //  SAFEGUARD
                 console.log('Server: player.position before emitting initialGameState:', player.position);
                 socket.emit('initialGameState', {
                     initialFood: gameState.foods,
@@ -157,9 +179,9 @@ io.on('connection', (socket) => {
                         x: player.position.x,
                         y: player.position.y
                     },
-                    otherPlayers: Array.from(gameState.players.values()).map(p => ({ id: p.id, position: p.position, name: p.name }))  //  .values()!
+                    otherPlayers: Array.from(gameState.players.values()).map(p => ({ id: p.id, position: p.position, name: p.name }))    //  .values()!
                 });
-                console.log('Server: Sent initialGameState:', {  //  DEBUG
+                console.log('Server: Sent initialGameState:', {    //  DEBUG
                     initialFood: gameState.foods,
                     initialSnake: { x: player.position.x, y: player.position.y },
                     otherPlayers: Array.from(gameState.players.values()).map(p => ({ id: p.id, position: p.position, name: p.name }))
@@ -168,11 +190,11 @@ io.on('connection', (socket) => {
                 console.error("Error: Player or player.position is undefined!");
                 //  Handle the error appropriately (e.g., send an error to the client)
             }
-    
+
             // **ONE TIME - newPlayer after initialGameState**
             console.log('Server: Emitting newPlayer event:', { id: player.id, position: player.position, name: player.name });
             io.emit('newPlayer', { id: player.id, position: player.position, name: player.name });
-    
+
         } catch (error) {
             console.error('Server: Registration error:', error);
             socket.emit('registrationFailed', { error: error.message });
@@ -180,7 +202,7 @@ io.on('connection', (socket) => {
     });
     // Movement Updates
     socket.on('move', (movement) => {
-        
+
         const player = gameState.players.get(socket.id);
         if (player) {
             player.position.x = movement.x;
@@ -193,7 +215,6 @@ io.on('connection', (socket) => {
         }
     });
 
-    
 
     // Food Collection
     socket.on('collectFood', (foodId) => {
@@ -201,24 +222,24 @@ io.on('connection', (socket) => {
         const player = gameState.players.get(socket.id);
         if (player) {
             player.score += 10;
-    
+
             // Increase snake length (we'll just track a 'segmentsToAdd' counter for simplicity)
             player.segmentsToAdd = (player.segmentsToAdd || 0) + 3; // Add, for example, 3 segments
-    
+
             gameState.foods = gameState.foods.filter(food => food.id !== foodId);
-    
+
             // Add new food
             gameState.foods.push({
                 x: Math.floor(Math.random() * 1000),
                 y: Math.floor(Math.random() * 800),
                 id: `food_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
             });
-    
+
             io.emit('foodUpdate', {
                 removed: [foodId],
                 added: [gameState.foods[gameState.foods.length - 1]]
             });
-    
+
             // Inform the specific player to grow their snake
             socket.emit('growSnake');
         }
