@@ -98,20 +98,6 @@ function generateInitialFood(count) {
 io.on('connection', (socket) => {
     console.log(`Server: Client connected: ${socket.id}`);
 
-    socket.on('logFromUnity', (data) => {
-        console.log('Server: Log from Unity -', data.message, 'Client ID:', socket.id);
-    });
-
-    socket.on('playerConnected', (data) => {
-        console.log('Server: Received playerConnected event:', data, 'Client ID:', socket.id);
-        if (data && data.clientType === 'unity') {
-            console.log('Server: Connection identified as coming from Unity. Client ID:', socket.id);
-            socket.playerId = data.playerId; // Store playerId on the socket
-        } else {
-            console.log('Server: Connection not identified as coming from Unity or clientType is missing. Client ID:', socket.id);
-        }
-    });
-
     // SKIN HANDLING - Default Skin
     const defaultSkinId = 'green'; // Set a default skin ID
 
