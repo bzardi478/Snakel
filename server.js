@@ -98,8 +98,6 @@ function generateInitialFood(count) {
 io.on('connection', (socket) => {
     console.log(`Server: Client connected: ${socket.id}`);
 
-    // **ADD THESE EVENT LISTENERS HERE:**
-    console.log("unity about to be")
     socket.on('logFromUnity', (data) => {
         console.log('Server: Log from Unity -', data.message, 'Client ID:', socket.id);
     });
@@ -108,17 +106,14 @@ io.on('connection', (socket) => {
         console.log('Server: Received playerConnected event:', data, 'Client ID:', socket.id);
         if (data && data.clientType === 'unity') {
             console.log('Server: Connection identified as coming from Unity. Client ID:', socket.id);
+            socket.playerId = data.playerId; // Store playerId on the socket
         } else {
             console.log('Server: Connection not identified as coming from Unity or clientType is missing. Client ID:', socket.id);
         }
-
-        // You might want to assign the playerId received from Unity to the socket or player state here
-        // For example:
-        // const player = gameState.players.get(socket.id);
-        // if (player) {
-        //     player.id = data.playerId;
-        // }
     });
+
+    // SKIN HANDLING - Default Skin
+    const defaultSkinId = 'green'; // Set a default skin ID
 
     // Authentication Event Listeners
     socket.on('register', async (data, callback) => {
@@ -163,7 +158,8 @@ io.on('connection', (socket) => {
                 position: { x: 400, y: 300 },
                 score: 0,
                 lastActive: Date.now(),
-                name: chatName
+                name: chatName,
+                skinId: defaultSkinId // SKIN HANDLING - Assign default skin
             };
 
             gameState.players.set(socket.id, player);
@@ -179,12 +175,12 @@ io.on('connection', (socket) => {
                         x: player.position.x,
                         y: player.position.y
                     },
-                    otherPlayers: Array.from(gameState.players.values()).map(p => ({ id: p.id, position: p.position, name: p.name }))    //  .values()!
+                    otherPlayers: Array.from(gameState.players.values()).map(p => ({ id: p.id, position: p.position, name: p.name, skinId: p.skinId }))    //  .values()! // SKIN HANDLING - Send initial skin
                 });
                 console.log('Server: Sent initialGameState:', {    //  DEBUG
                     initialFood: gameState.foods,
                     initialSnake: { x: player.position.x, y: player.position.y },
-                    otherPlayers: Array.from(gameState.players.values()).map(p => ({ id: p.id, position: p.position, name: p.name }))
+                    otherPlayers: Array.from(gameState.players.values()).map(p => ({ id: p.id, position: p.position, name: p.name, skinId: p.skinId })) // SKIN HANDLING - Debug log initial skin
                 });
             } else {
                 console.error("Error: Player or player.position is undefined!");
@@ -192,8 +188,8 @@ io.on('connection', (socket) => {
             }
 
             // **ONE TIME - newPlayer after initialGameState**
-            console.log('Server: Emitting newPlayer event:', { id: player.id, position: player.position, name: player.name });
-            io.emit('newPlayer', { id: player.id, position: player.position, name: player.name });
+            console.log('Server: Emitting newPlayer event:', { id: player.id, position: player.position, name: player.name, skinId: player.skinId }); // SKIN HANDLING - Send skin in newPlayer
+            io.emit('newPlayer', { id: player.id, position: player.position, name: player.name, skinId: player.skinId }); // SKIN HANDLING - Send skin in newPlayer
 
         } catch (error) {
             console.error('Server: Registration error:', error);
@@ -250,6 +246,15 @@ io.on('connection', (socket) => {
         console.log('Server: Received chat message:', data, 'from:', socket.id);
         console.log('Server: Received chat message data:', data);
         io.emit('chat message', data);
+    });
+
+    socket.on('skinChanged', (data) => { // SKIN HANDLING - Listen for skin changes
+        console.log('Server: Received skinChanged event:', data, 'from:', socket.id);
+        const player = gameState.players.get(socket.id);
+        if (player && data.skinId) {
+            player.skinId = data.skinId;
+            io.emit('playerSkinUpdated', { playerId: player.id, skinId: player.skinId }); // Broadcast skin update
+        }
     });
 
 
