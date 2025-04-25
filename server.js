@@ -106,8 +106,11 @@ function initializeSnake(initialPosition) {
 function updatePlayerSnakeBody(playerId, newHeadPosition) {
     const snakeBody = playerSnakes.get(playerId);
     if (snakeBody) {
-        snakeBody.unshift(newHeadPosition); // Add new head
-        snakeBody.pop(); // Remove tail to maintain length
+        console.log('Server: snakeBody before unshift:', snakeBody); // DEBUG
+        snakeBody.unshift(newHeadPosition);
+        console.log('Server: snakeBody after unshift:', snakeBody); // DEBUG
+        snakeBody.pop();
+        console.log('Server: snakeBody after pop:', snakeBody); // DEBUG
     }
 }
 
@@ -165,6 +168,7 @@ io.on('connection', (socket) => {
 
             gameState.players.set(socket.id, player);
             playerSnakes.set(socket.id, initializeSnake(initialPosition)); // Initialize snake body
+            console.log('Server: playerSnakes after startGameRequest:', playerSnakes); // DEBUG
 
             socket.emit('playerRegistered', { playerId });
 
@@ -190,6 +194,7 @@ io.on('connection', (socket) => {
     });
 
     socket.on('move', (movement) => {
+        console.log('Server: playerSnakes at start of move:', playerSnakes); // DEBUG
         const player = gameState.players.get(socket.id);
         if (player) {
             const newHeadPosition = { x: movement.x, y: movement.y };
