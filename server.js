@@ -229,6 +229,20 @@ io.on('connection', (socket) => {
             socket.emit('growSnake');
         }
     });
+    function updatePlayerSnakeBody(playerId, newHeadPosition) {
+        const snakeBody = playerSnakes.get(playerId);
+        const player = gameState.players.get(playerId); // Get the player object
+    
+        if (snakeBody && player) {
+            snakeBody.unshift(newHeadPosition);
+            // Only remove the tail if the player does NOT have segments to add
+            if (!player.segmentsToAdd || player.segmentsToAdd <= 0) {
+                snakeBody.pop();
+            } else {
+                player.segmentsToAdd--; // Decrement the growth counter
+            }
+        }
+    }
 
     // Chat Message Handling
     socket.on('chat message', (data) => {
