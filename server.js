@@ -105,16 +105,12 @@ function initializeSnake(initialPosition) {
 // Function to update the snake body based on movement
 function updatePlayerSnakeBody(playerId, newHeadPosition) {
     const snakeBody = playerSnakes.get(playerId);
-    const player = gameState.players.get(playerId); // Get the player object
-
-    if (snakeBody && player) {
+    if (snakeBody) {
+        console.log('Server: snakeBody before unshift:', snakeBody); // DEBUG
         snakeBody.unshift(newHeadPosition);
-        // Only remove the tail if the player does NOT have segments to add
-        if (!player.segmentsToAdd || player.segmentsToAdd <= 0) {
-            snakeBody.pop();
-        } else {
-            player.segmentsToAdd--; // Decrement the growth counter
-        }
+        console.log('Server: snakeBody after unshift:', snakeBody); // DEBUG
+        snakeBody.pop();
+        console.log('Server: snakeBody after pop:', snakeBody); // DEBUG
     }
 }
 
@@ -168,27 +164,27 @@ io.on('connection', (socket) => {
         try {
             const playerId = `player_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
             const initialPosition = { x: 400, y: 300 };
-            const player = { id: playerId, position: initialPosition, score: 0, lastActive: Date.now(), name: chatName, skinId: defaultSkinId, segmentsToAdd: 0 }; // Initialize segmentsToAdd
+            const player = { id: playerId, position: initialPosition, score: 0, lastActive: Date.now(), name: chatName, skinId: defaultSkinId };
 
             gameState.players.set(socket.id, player);
             playerSnakes.set(socket.id, initializeSnake(initialPosition)); // Initialize snake body
-            console.log('Server (startGameRequest): playerSnakes after init:', playerSnakes); // DEBUG
+            console.log('Server: playerSnakes after startGameRequest:', playerSnakes); // DEBUG
 
             socket.emit('playerRegistered', { playerId });
 
             if (player && player.position) {
-                console.log('Server (startGameRequest): Emitting initialSnake:', getPlayerSnakeBody(socket.id)); // DEBUG
+                console.log('Server: Emitting initialSnake:', getPlayerSnakeBody(socket.id)); // DEBUG
                 socket.emit('initialGameState', {
                     initialFood: gameState.foods,
                     initialSnake: getPlayerSnakeBody(socket.id),
                     otherPlayers: Array.from(gameState.players.values()).map(p => ({ id: p.id, position: p.position, name: p.name, skinId: p.skinId }))
                 });
-                console.log('Server (startGameRequest): Sent initialGameState:', { initialFood: gameState.foods, initialSnake: getPlayerSnakeBody(socket.id), otherPlayers: Array.from(gameState.players.values()).map(p => ({ id: p.id, position: p.position, name: p.name, skinId: p.skinId })) }); // DEBUG
+                console.log('Server: Sent initialGameState:', { initialFood: gameState.foods, initialSnake: getPlayerSnakeBody(socket.id), otherPlayers: Array.from(gameState.players.values()).map(p => ({ id: p.id, position: p.position, name: p.name, skinId: p.skinId })) }); // DEBUG
             } else {
                 console.error("Error: Player or player.position is undefined!");
             }
 
-            console.log('Server (startGameRequest): Emitting newPlayer event:', { id: player.id, position: player.position, name: player.name, skinId: player.skinId });
+            console.log('Server: Emitting newPlayer event:', { id: player.id, position: player.position, name: player.name, skinId: player.skinId });
             io.emit('newPlayer', { id: player.id, position: player.position, name: player.name, skinId: player.skinId });
 
         } catch (error) {
@@ -198,16 +194,15 @@ io.on('connection', (socket) => {
     });
 
     socket.on('move', (movement) => {
-        console.log('Server (move): playerSnakes at start of move:', playerSnakes); // DEBUG
+        console.log('Server: playerSnakes at start of move:', playerSnakes); // DEBUG
         const player = gameState.players.get(socket.id);
-        console.log('Server (move): player object:', player); // DEBUG
         if (player) {
             const newHeadPosition = { x: movement.x, y: movement.y };
             updatePlayerSnakeBody(socket.id, newHeadPosition);
             player.position = newHeadPosition;
 
             const snakeBody = getPlayerSnakeBody(socket.id);
-            console.log('Server (move): Emitting snakeBody for', player.id, ':', snakeBody); // DEBUG
+            console.log('Server: Emitting snakeBody for', player.id, ':', snakeBody); // DEBUG
             io.emit('playerMoved', {
                 playerId: player.id,
                 snakeBody: snakeBody
@@ -221,7 +216,6 @@ io.on('connection', (socket) => {
         if (player) {
             player.score += 10;
             player.segmentsToAdd = (player.segmentsToAdd || 0) + 3;
-            console.log('Server (collectFood): Player collected food. segmentsToAdd:', player.segmentsToAdd); // DEBUG
             gameState.foods = gameState.foods.filter(food => food.id !== foodId);
             gameState.foods.push({
                 x: Math.floor(Math.random() * 1000),
@@ -235,13 +229,30 @@ io.on('connection', (socket) => {
             socket.emit('growSnake');
         }
     });
+    function updatePlayerSnakeBody(playerId, newHeadPosition) {
+        const snakeBody = playerSnakes.get(playerId);
+        const player = gameState.players.get(playerId); // Get the player object
+    
+        if (snakeBody && player) {
+            snakeBody.unshift(newHeadPosition);
+            // Only remove the tail if the player does NOT have segments to add
+            if (!player.segmentsToAdd || player.segmentsToAdd <= 0) {
+                snakeBody.pop();
+            } else {
+                player.segmentsToAdd--; // Decrement the growth counter
+            }
+        }
+    }
 
     // Chat Message Handling
     socket.on('chat message', (data) => {
+        console.log('Server: Received chat message:', data, 'from:', socket.id);
+        console.log('Server: Received chat message data:', data);
         io.emit('chat message', data);
     });
 
     socket.on('skinChanged', (data) => {
+        console.log('Server: Received skinChanged event:', data, 'from:', socket.id);
         const player = gameState.players.get(socket.id);
         if (player && data.skinId) {
             player.skinId = data.skinId;
@@ -258,8 +269,10 @@ io.on('connection', (socket) => {
         const player = gameState.players.get(socket.id);
         if (player) {
             gameState.players.delete(socket.id);
+            console.log('Server: Emitting playerDisconnected event:', player.id);
             io.emit('playerDisconnected', player.id);
             playerSnakes.delete(socket.id); // Clean up snake data
+            console.log(`Server: Player disconnected: ${player.id}`);
         }
     });
 
@@ -278,6 +291,7 @@ setInterval(() => {
     inactivePlayers.forEach(([socketId, player]) => {
         gameState.players.delete(socketId);
         io.emit('playerDisconnected', player.id);
+        console.log(`Server: Removed inactive player: ${player.id}`);
     });
 }, 60000); // Run every minute
 
