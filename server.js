@@ -94,30 +94,9 @@ function generateInitialFood(count) {
     return foods;
 }
 
-// Store the snake body for each player on the server
-const playerSnakes = new Map();
 
-// Function to initialize a new snake body
-function initializeSnake(initialPosition) {
-    return [initialPosition]; // Start with a single segment
-}
 
-// Function to update the snake body based on movement
-function updatePlayerSnakeBody(playerId, newHeadPosition) {
-    const snakeBody = playerSnakes.get(playerId);
-    if (snakeBody) {
-        console.log('Server: snakeBody before unshift:', snakeBody); // DEBUG
-        snakeBody.unshift(newHeadPosition);
-        console.log('Server: snakeBody after unshift:', snakeBody); // DEBUG
-        snakeBody.pop();
-        console.log('Server: snakeBody after pop:', snakeBody); // DEBUG
-    }
-}
 
-// Function to get the snake body for a player
-function getPlayerSnakeBody(playerId) {
-    return playerSnakes.get(playerId);
-}
 
 // Connection Management
 io.on('connection', (socket) => {
@@ -172,18 +151,6 @@ io.on('connection', (socket) => {
 
             socket.emit('playerRegistered', { playerId });
 
-            if (player && player.position) {
-                console.log('Server: Emitting initialSnake:', getPlayerSnakeBody(socket.id)); // DEBUG
-                socket.emit('initialGameState', {
-                    initialFood: gameState.foods,
-                    initialSnake: getPlayerSnakeBody(socket.id),
-                    otherPlayers: Array.from(gameState.players.values()).map(p => ({ id: p.id, position: p.position, name: p.name, skinId: p.skinId }))
-                });
-                console.log('Server: Sent initialGameState:', { initialFood: gameState.foods, initialSnake: getPlayerSnakeBody(socket.id), otherPlayers: Array.from(gameState.players.values()).map(p => ({ id: p.id, position: p.position, name: p.name, skinId: p.skinId })) }); // DEBUG
-            } else {
-                console.error("Error: Player or player.position is undefined!");
-            }
-
             console.log('Server: Emitting newPlayer event:', { id: player.id, position: player.position, name: player.name, skinId: player.skinId });
             io.emit('newPlayer', { id: player.id, position: player.position, name: player.name, skinId: player.skinId });
 
@@ -193,42 +160,7 @@ io.on('connection', (socket) => {
         }
     });
 
-    socket.on('move', (movement) => {
-        console.log('Server: playerSnakes at start of move:', playerSnakes); // DEBUG
-        const player = gameState.players.get(socket.id);
-        if (player) {
-            const newHeadPosition = { x: movement.x, y: movement.y };
-            updatePlayerSnakeBody(socket.id, newHeadPosition);
-            player.position = newHeadPosition;
 
-            const snakeBody = getPlayerSnakeBody(socket.id);
-            console.log('Server: Emitting snakeBody for', player.id, ':', snakeBody); // DEBUG
-            io.emit('playerMoved', {
-                playerId: player.id,
-                snakeBody: snakeBody
-            });
-        }
-    });
-
-    socket.on('collectFood', (foodId) => {
-        console.log('Server: Received collectFood request for:', foodId, 'from:', socket.id);
-        const player = gameState.players.get(socket.id);
-        if (player) {
-            player.score += 10;
-            player.segmentsToAdd = (player.segmentsToAdd || 0) + 3;
-            gameState.foods = gameState.foods.filter(food => food.id !== foodId);
-            gameState.foods.push({
-                x: Math.floor(Math.random() * 1000),
-                y: Math.floor(Math.random() * 800),
-                id: `food_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
-            });
-            io.emit('foodUpdate', {
-                removed: [foodId],
-                added: [gameState.foods[gameState.foods.length - 1]]
-            });
-            socket.emit('growSnake');
-        }
-    });
     function updatePlayerSnakeBody(playerId, newHeadPosition) {
         const snakeBody = playerSnakes.get(playerId);
         const player = gameState.players.get(playerId); // Get the player object
