@@ -216,16 +216,25 @@ io.on('connection', (socket) => {
         if (player) {
             player.score += 10;
             player.segmentsToAdd = (player.segmentsToAdd || 0) + 3;
+            
+            // Remove the collected food
             gameState.foods = gameState.foods.filter(food => food.id !== foodId);
-            gameState.foods.push({
-                x: Math.floor(Math.random() * 1000),
-                y: Math.floor(Math.random() * 800),
-                id: `food_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
-            });
-            io.emit('foodUpdate', {
-                removed: [foodId],
-                added: [gameState.foods[gameState.foods.length - 1]]
-            });
+    
+            // Add new food only if we have less than 20 food items
+            if (gameState.foods.length < 20) { // 20 is the limit for food items
+                const newFood = {
+                    x: Math.floor(Math.random() * 1000),
+                    y: Math.floor(Math.random() * 800),
+                    id: `food_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+                };
+                gameState.foods.push(newFood);
+                io.emit('foodUpdate', {
+                    removed: [foodId],
+                    added: [newFood]
+                });
+            }
+            
+            // Signal to grow the player's snake
             socket.emit('growSnake');
         }
     });
