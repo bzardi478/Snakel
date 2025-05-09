@@ -8,6 +8,7 @@ const admin = require('firebase-admin');
 
 const app = express();
 const httpServer = createServer(app);
+let lastMoveUpdate = Date.now();
 
 // Initialize Socket.IO
 const io = new Server(httpServer, {
@@ -193,22 +194,27 @@ io.on('connection', (socket) => {
         }
     });
 
-    socket.on('move', (movement) => {
-        console.log('Server: playerSnakes at start of move:', playerSnakes); // DEBUG
-        const player = gameState.players.get(socket.id);
-        if (player) {
-            const newHeadPosition = { x: movement.x, y: movement.y };
-            updatePlayerSnakeBody(socket.id, newHeadPosition);
-            player.position = newHeadPosition;
+// Inside the `move` event handler, you could update less frequently
 
-            const snakeBody = getPlayerSnakeBody(socket.id);
-            console.log('Server: Emitting snakeBody for', player.id, ':', snakeBody); // DEBUG
-            io.emit('playerMoved', {
-                playerId: player.id,
-                snakeBody: snakeBody
-            });
+
+    socket.on('move', (movement) => {
+        const currentTime = Date.now();
+        if (currentTime - lastMoveUpdate > 50) { // Update every 50ms (~20 FPS)
+            lastMoveUpdate = currentTime;
+            const player = gameState.players.get(socket.id);
+            if (player) {
+                const newHeadPosition = { x: movement.x, y: movement.y };
+                updatePlayerSnakeBody(socket.id, newHeadPosition);
+                player.position = newHeadPosition;
+
+                const snakeBody = getPlayerSnakeBody(socket.id);
+                io.emit('playerMoved', {
+                    playerId: player.id,
+                    snakeBody: snakeBody
+                });
+            }
         }
-    });
+    })
 
     socket.on('collectFood', (foodId) => {
         console.log('Server: Received collectFood request for:', foodId, 'from:', socket.id);
