@@ -221,27 +221,28 @@ io.on('connection', (socket) => {
         }
       });
 
-// Inside the `move` event handler, you could update less frequently
 
 
     socket.on('move', (movement) => {
         const currentTime = Date.now();
         if (currentTime - lastMoveUpdate > 50) { // Update every 50ms (~20 FPS)
-            lastMoveUpdate = currentTime;
-            const player = gameState.players.get(socket.id);
-            if (player) {
-                const newHeadPosition = { x: movement.x, y: movement.y };
-                updatePlayerSnakeBody(socket.id, newHeadPosition);
-                player.position = newHeadPosition;
-
-                const snakeBody = getPlayerSnakeBody(socket.id);
-                io.emit('playerMoved', {
-                    playerId: player.id,
-                    snakeBody: snakeBody
-                });
-            }
+        lastMoveUpdate = currentTime;
+        const player = gameState.players.get(socket.id);
+        if (player) {
+            const newHeadPosition = { x: movement.x, y: movement.y };
+            const hasMoved = player.position ? (player.position.x !== newHeadPosition.x || player.position.y !== newHeadPosition.y) : true; // Consider it moved if it's the first move
+    
+            updatePlayerSnakeBody(socket.id, newHeadPosition, hasMoved); // Pass the hasMoved flag
+            player.position = newHeadPosition;
+    
+            const snakeBody = getPlayerSnakeBody(socket.id);
+            io.emit('playerMoved', {
+            playerId: player.id,
+            snakeBody: snakeBody
+            });
         }
-    })
+        }
+    });
 
     socket.on('collectFood', (foodId) => {
         const player = gameState.players.get(socket.id);
@@ -279,12 +280,12 @@ io.on('connection', (socket) => {
         }
       });
 
-      function updatePlayerSnakeBody(playerId, newHeadPosition) {
+      function updatePlayerSnakeBody(playerId, newHeadPosition, hasMoved) {
         const snakeBody = playerSnakes.get(playerId);
         const player = gameState.players.get(playerId);
       
         if (!snakeBody || !player) {
-          return; // Exit if snake body or player data is missing
+          return;
         }
       
         snakeBody.unshift(newHeadPosition);
@@ -292,22 +293,16 @@ io.on('connection', (socket) => {
         const segmentsToRemove = player.segmentsToAdd || 0;
       
         if (segmentsToRemove > 0) {
-          // More efficient removal using splice if the number is significant
           if (segmentsToRemove >= snakeBody.length - 1) {
-            snakeBody.length = 1; // Keep at least the head
+            snakeBody.length = 1;
           } else {
             snakeBody.splice(-segmentsToRemove);
           }
-          player.segmentsToAdd = 0; // Reset growth counter
-        } else if (snakeBody.length > player.initialLength) {
-          // Only pop if not growing and longer than initial length
+          player.segmentsToAdd = 0;
+        } else if (hasMoved && snakeBody.length > player.initialLength) { // Only pop if moved
           snakeBody.pop();
         }
-      
-        // Optional: Consider emitting a more granular 'snakeUpdated' event
-        // with only the changes, for potential client-side optimization.
       }
-
     // Chat Message Handling
     socket.on('chat message', (data) => {
         console.log('Server: Received chat message:', data, 'from:', socket.id);
