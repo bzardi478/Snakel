@@ -257,7 +257,7 @@ io.on('connection', (socket) => {
         if (!player.recentlyCollectedFood.has(foodId)) {
             player.recentlyCollectedFood.add(foodId);
             player.score += 10;
-            const lengthGain = 3;
+            const lengthGain = 1;
             player.currentLength += lengthGain;
             player.segmentsToAdd = (player.segmentsToAdd || 0) + lengthGain;
 
