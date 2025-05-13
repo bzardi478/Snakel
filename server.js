@@ -280,7 +280,7 @@ io.on('connection', (socket) => {
         }
       });
 
-      function updatePlayerSnakeBody(playerId, newHeadPosition, hasMoved) {
+      function updatePlayerSnakeBody(playerId, newHeadPosition) {
         const snakeBody = playerSnakes.get(playerId);
         const player = gameState.players.get(playerId);
       
@@ -293,13 +293,15 @@ io.on('connection', (socket) => {
         const segmentsToRemove = player.segmentsToAdd || 0;
       
         if (segmentsToRemove > 0) {
-          if (segmentsToRemove >= snakeBody.length - 1) {
-            snakeBody.length = 1;
-          } else {
-            snakeBody.splice(-segmentsToRemove);
-          }
+          const newTargetLength = snakeBody.length + segmentsToRemove;
+          player.currentLength += segmentsToRemove;
           player.segmentsToAdd = 0;
-        } else if (hasMoved && snakeBody.length > player.initialLength) { // Only pop if moved
+      
+          // Immediately adjust the snake body to the new target length
+          while (snakeBody.length > player.currentLength) {
+            snakeBody.pop();
+          }
+        } else if (snakeBody.length > player.currentLength) {
           snakeBody.pop();
         }
       }
