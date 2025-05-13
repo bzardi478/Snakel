@@ -153,6 +153,7 @@ io.on('connection', (socket) => {
         try {
             const playerId = `player_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
             const initialPosition = { x: 400, y: 300 };
+            const initialLength = 1; // Define initialLength here
             const player = {
                 id: playerId,
                 position: initialPosition,
@@ -160,7 +161,8 @@ io.on('connection', (socket) => {
                 lastActive: Date.now(),
                 name: chatName,
                 skinId: defaultSkinId,
-                initialLength: 1 // Add the initialLength property here
+                initialLength: initialLength, // Add the initialLength property here
+                currentLength: initialLength // Initialize currentLength here
             };
 
             gameState.players.set(socket.id, player);
