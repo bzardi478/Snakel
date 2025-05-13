@@ -276,38 +276,27 @@ io.on('connection', (socket) => {
     function updatePlayerSnakeBody(playerId, newHeadPosition, hasMoved) {
         const snakeBody = playerSnakes.get(playerId);
         const player = gameState.players.get(playerId);
-
+      
         if (!snakeBody || !player) {
-            console.log(`Server [UPDATE BODY]: Player ${playerId} - Snake or Player data missing.`);
-            return;
+          return;
         }
-
-        console.log(`Server [UPDATE BODY]: Player ${playerId} - Before Update - Body Length: ${snakeBody.length}, currentLength: ${player.currentLength}, segmentsToAdd: ${player.segmentsToAdd}, hasMoved: ${hasMoved}`);
-
+      
+        // Add the new head segment
         snakeBody.unshift(newHeadPosition);
-        console.log(`Server [UPDATE BODY]: Player ${playerId} - After Unshift - Body Length: ${snakeBody.length}`);
-
+      
         const segmentsToRemove = player.segmentsToAdd || 0;
-
+      
         if (segmentsToRemove > 0) {
-            const newTargetLength = snakeBody.length + segmentsToRemove;
-            player.currentLength += segmentsToRemove;
-            player.segmentsToAdd = 0;
-            console.log(`Server [UPDATE BODY]: Player ${playerId} - Growing - newTargetLength: ${newTargetLength}, currentLength updated to: ${player.currentLength}`);
-            while (snakeBody.length > player.currentLength) {
-                snakeBody.pop();
-                console.log(`Server [UPDATE BODY]: Player ${playerId} - Growing - Popped tail, new Body Length: ${snakeBody.length}`);
-            }
-        } else if (hasMoved && snakeBody.length > player.currentLength) {
-            snakeBody.pop();
-            console.log(`Server [UPDATE BODY]: Player ${playerId} - Moving - Popped tail, new Body Length: ${snakeBody.length}`);
-        } else if (!hasMoved && snakeBody.length > player.currentLength) {
-            console.log(`Server [UPDATE BODY]: Player ${playerId} - Not Moving but longer - Body Length: ${snakeBody.length}, currentLength: ${player.currentLength} - SHOULD POP?`);
-        } else {
-            console.log(`Server [UPDATE BODY]: Player ${playerId} - No Pop - Body Length: ${snakeBody.length}, currentLength: ${player.currentLength}, hasMoved: ${hasMoved}`);
+          player.currentLength += segmentsToRemove;
+          player.segmentsToAdd = 0;
+          // We don't need to remove segments immediately here; the next part will handle it
         }
-        console.log(`Server [UPDATE BODY]: Player ${playerId} - After Update - Body Length: ${snakeBody.length}, currentLength: ${player.currentLength}, segmentsToAdd: ${player.segmentsToAdd}`);
-    }
+      
+        // Maintain the length of the snake
+        while (snakeBody.length > player.currentLength) {
+          snakeBody.pop();
+        }
+      }
     // Chat Message Handling
     socket.on('chat message', (data) => {
         console.log('Server: Received chat message:', data, 'from:', socket.id);
