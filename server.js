@@ -290,10 +290,14 @@ io.on('connection', (socket) => {
         const segmentsToRemove = player.segmentsToAdd || 0;
 
         if (segmentsToRemove > 0) {
+            const newTargetLength = snakeBody.length + segmentsToRemove;
             player.currentLength += segmentsToRemove;
             player.segmentsToAdd = 0;
-            console.log(`Server [UPDATE BODY]: Player ${playerId} - Growing - currentLength updated to: ${player.currentLength}`);
-            // We don't pop the tail immediately during growth anymore.
+            console.log(`Server [UPDATE BODY]: Player ${playerId} - Growing - newTargetLength: ${newTargetLength}, currentLength updated to: ${player.currentLength}`);
+            while (snakeBody.length > player.currentLength) {
+                snakeBody.pop();
+                console.log(`Server [UPDATE BODY]: Player ${playerId} - Growing - Popped tail, new Body Length: ${snakeBody.length}`);
+            }
         } else if (hasMoved && snakeBody.length > player.currentLength) {
             snakeBody.pop();
             console.log(`Server [UPDATE BODY]: Player ${playerId} - Moving - Popped tail, new Body Length: ${snakeBody.length}`);
@@ -302,13 +306,6 @@ io.on('connection', (socket) => {
         } else {
             console.log(`Server [UPDATE BODY]: Player ${playerId} - No Pop - Body Length: ${snakeBody.length}, currentLength: ${player.currentLength}, hasMoved: ${hasMoved}`);
         }
-
-        // Ensure the snake body length matches currentLength after potential growth
-        while (snakeBody.length > player.currentLength) {
-            snakeBody.pop();
-            console.log(`Server [UPDATE BODY]: Player ${playerId} - Maintaining Length - Popped tail, new Body Length: ${snakeBody.length}`);
-        }
-
         console.log(`Server [UPDATE BODY]: Player ${playerId} - After Update - Body Length: ${snakeBody.length}, currentLength: ${player.currentLength}, segmentsToAdd: ${player.segmentsToAdd}`);
     }
     // Chat Message Handling
