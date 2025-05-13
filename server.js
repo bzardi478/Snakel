@@ -163,36 +163,63 @@ io.on('connection', (socket) => {
         console.log('Server: Received startGameRequest:', data);
         const chatName = data.chatName;
         try {
-            const playerId = `player_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-            const initialPosition = { x: 400, y: 300 };
-            const player = { id: playerId, position: initialPosition, score: 0, lastActive: Date.now(), name: chatName, skinId: defaultSkinId };
-
-            gameState.players.set(socket.id, player);
-            playerSnakes.set(socket.id, initializeSnake(initialPosition)); // Initialize snake body
-            console.log('Server: playerSnakes after startGameRequest:', playerSnakes); // DEBUG
-
-            socket.emit('playerRegistered', { playerId });
-
-            if (player && player.position) {
-                console.log('Server: Emitting initialSnake:', getPlayerSnakeBody(socket.id)); // DEBUG
-                socket.emit('initialGameState', {
-                    initialFood: gameState.foods,
-                    initialSnake: getPlayerSnakeBody(socket.id),
-                    otherPlayers: Array.from(gameState.players.values()).map(p => ({ id: p.id, position: p.position, name: p.name, skinId: p.skinId }))
-                });
-                console.log('Server: Sent initialGameState:', { initialFood: gameState.foods, initialSnake: getPlayerSnakeBody(socket.id), otherPlayers: Array.from(gameState.players.values()).map(p => ({ id: p.id, position: p.position, name: p.name, skinId: p.skinId })) }); // DEBUG
-            } else {
-                console.error("Error: Player or player.position is undefined!");
-            }
-
-            console.log('Server: Emitting newPlayer event:', { id: player.id, position: player.position, name: player.name, skinId: player.skinId });
-            io.emit('newPlayer', { id: player.id, position: player.position, name: player.name, skinId: player.skinId });
-
+          const playerId = `player_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+          const initialPosition = { x: 400, y: 300 };
+          const player = {
+            id: playerId,
+            position: initialPosition,
+            score: 0,
+            lastActive: Date.now(),
+            name: chatName,
+            skinId: defaultSkinId,
+            initialLength: 1 // Add the initialLength property here
+          };
+      
+          gameState.players.set(socket.id, player);
+          playerSnakes.set(socket.id, initializeSnake(initialPosition)); // Initialize snake body
+          console.log('Server: playerSnakes after startGameRequest:', playerSnakes); // DEBUG
+      
+          socket.emit('playerRegistered', { playerId });
+      
+          if (player && player.position) {
+            console.log('Server: Emitting initialSnake:', getPlayerSnakeBody(socket.id)); // DEBUG
+            socket.emit('initialGameState', {
+              initialFood: gameState.foods,
+              initialSnake: getPlayerSnakeBody(socket.id),
+              otherPlayers: Array.from(gameState.players.values()).map(p => ({
+                id: p.id,
+                position: p.position,
+                name: p.name,
+                skinId: p.skinId
+              }))
+            });
+            console.log('Server: Sent initialGameState:', {
+              initialFood: gameState.foods,
+              initialSnake: getPlayerSnakeBody(socket.id),
+              otherPlayers: Array.from(gameState.players.values()).map(p => ({
+                id: p.id,
+                position: p.position,
+                name: p.name,
+                skinId: p.skinId
+              }))
+            }); // DEBUG
+          } else {
+            console.error('Error: Player or player.position is undefined!');
+          }
+      
+          console.log('Server: Emitting newPlayer event:', {
+            id: player.id,
+            position: player.position,
+            name: player.name,
+            skinId: player.skinId
+          });
+          io.emit('newPlayer', { id: player.id, position: player.position, name: player.name, skinId: player.skinId });
+      
         } catch (error) {
-            console.error('Server: startGameRequest error:', error);
-            socket.emit('registrationFailed', { error: error.message });
+          console.error('Server: startGameRequest error:', error);
+          socket.emit('registrationFailed', { error: error.message });
         }
-    });
+      });
 
 // Inside the `move` event handler, you could update less frequently
 
@@ -252,20 +279,34 @@ io.on('connection', (socket) => {
         }
       });
 
-    function updatePlayerSnakeBody(playerId, newHeadPosition) {
+      function updatePlayerSnakeBody(playerId, newHeadPosition) {
         const snakeBody = playerSnakes.get(playerId);
-        const player = gameState.players.get(playerId); // Get the player object
-
-        if (snakeBody && player) {
-            snakeBody.unshift(newHeadPosition);
-            // Only remove the tail if the player doesn't have segments to add
-            if (!player.segmentsToAdd || player.segmentsToAdd <= 0) {
-                snakeBody.pop();
-            } else {
-                player.segmentsToAdd--; // Decrement the growth counter
-            }
+        const player = gameState.players.get(playerId);
+      
+        if (!snakeBody || !player) {
+          return; // Exit if snake body or player data is missing
         }
-    }
+      
+        snakeBody.unshift(newHeadPosition);
+      
+        const segmentsToRemove = player.segmentsToAdd || 0;
+      
+        if (segmentsToRemove > 0) {
+          // More efficient removal using splice if the number is significant
+          if (segmentsToRemove >= snakeBody.length - 1) {
+            snakeBody.length = 1; // Keep at least the head
+          } else {
+            snakeBody.splice(-segmentsToRemove);
+          }
+          player.segmentsToAdd = 0; // Reset growth counter
+        } else if (snakeBody.length > player.initialLength) {
+          // Only pop if not growing and longer than initial length
+          snakeBody.pop();
+        }
+      
+        // Optional: Consider emitting a more granular 'snakeUpdated' event
+        // with only the changes, for potential client-side optimization.
+      }
 
     // Chat Message Handling
     socket.on('chat message', (data) => {
