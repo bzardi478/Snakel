@@ -1,3 +1,5 @@
+JavaScript
+
 require('dotenv').config({ path: '/.env' });
 const express = require('express');
 const { createServer } = require('node:http');
@@ -153,7 +155,8 @@ io.on('connection', (socket) => {
         try {
             const playerId = `player_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
             const initialPosition = { x: 400, y: 300 };
-            const initialLength = 1; // Define initialLength here
+            const initialLength = 5; // Define initialLength here
+            const initialSpeed = 5; // Initial speed
             const player = {
                 id: playerId,
                 position: initialPosition,
@@ -161,8 +164,9 @@ io.on('connection', (socket) => {
                 lastActive: Date.now(),
                 name: chatName,
                 skinId: defaultSkinId,
-                initialLength: initialLength, // Add the initialLength property here
-                currentLength: initialLength // Initialize currentLength here
+                initialLength: initialLength,
+                currentLength: initialLength,
+                speed: initialSpeed // Add speed to the player object
             };
 
             gameState.players.set(socket.id, player);
@@ -222,7 +226,7 @@ io.on('connection', (socket) => {
                 const newHeadPosition = { x: movement.x, y: movement.y };
                 const hasMoved = player.position ? (player.position.x !== newHeadPosition.x || player.position.y !== newHeadPosition.y) : true; // Consider it moved if it's the first move
 
-                console.log(`Server [MOVE]: Player ${player.id} - New Head:`, newHeadPosition, 'Previous Position:', player.position, 'hasMoved:', hasMoved);
+                console.log(`Server [MOVE]: Player ${player.id} - New Head:`, newHeadPosition, 'Previous Position:', player.position, 'hasMoved:', hasMoved, 'Current Speed:', player.speed);
 
                 player.position = newHeadPosition; // Update player position FIRST
 
@@ -232,11 +236,13 @@ io.on('connection', (socket) => {
                 console.log(`Server [MOVE]: Player ${player.id} - Snake Body Length:`, snakeBody ? snakeBody.length : 0, 'Current Length Target:', player.currentLength, 'Segments To Add:', player.segmentsToAdd);
                 io.emit('playerMoved', {
                     playerId: player.id,
-                    snakeBody: snakeBody
+                    snakeBody: snakeBody,
+                    speed: player.speed // Send the current speed to the client
                 });
             }
         }
     });
+
     socket.on('collectFood', (foodId) => {
         const player = gameState.players.get(socket.id);
         if (!player) return;
@@ -251,7 +257,12 @@ io.on('connection', (socket) => {
         if (!player.recentlyCollectedFood.has(foodId)) {
             player.recentlyCollectedFood.add(foodId);
             player.score += 10;
-            player.segmentsToAdd = (player.segmentsToAdd || 0) + 3;
+            const lengthGain = 3;
+            player.currentLength += lengthGain;
+            player.segmentsToAdd = (player.segmentsToAdd || 0) + lengthGain;
+
+            // Adjust speed based on currentLength (example formula)
+            player.speed = Math.max(1, 5 - (player.currentLength / 10)); // Adjust the divisor for more/less speed change
 
             const initialFoodLength = gameState.foods.length;
             gameState.foods = gameState.foods.filter(food => food.id !== foodId);
