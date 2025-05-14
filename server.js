@@ -312,7 +312,7 @@ io.on('connection', (socket) => {
         }
     
         console.log(`Server [UPDATE BODY]: Player ${playerId} - After Update - Body Length: ${snakeBody.length}, currentLength: ${player.currentLength}, segmentsToAdd: ${player.segmentsToAdd}`);
-    }
+    }    
     // Chat Message Handling
     socket.on('chat message', (data) => {
         console.log('Server: Received chat message:', data, 'from:', socket.id);
