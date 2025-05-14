@@ -1,5 +1,3 @@
-JavaScript
-
 require('dotenv').config({ path: '/.env' });
 const express = require('express');
 const { createServer } = require('node:http');
@@ -287,19 +285,19 @@ io.on('connection', (socket) => {
     function updatePlayerSnakeBody(playerId, newHeadPosition, hasMoved) {
         const snakeBody = playerSnakes.get(playerId);
         const player = gameState.players.get(playerId);
-
+    
         if (!snakeBody || !player) {
             console.log(`Server [UPDATE BODY]: Player ${playerId} - Snake or Player data missing.`);
             return;
         }
-
+    
         console.log(`Server [UPDATE BODY]: Player ${playerId} - Before Update - Body Length: ${snakeBody.length}, currentLength: ${player.currentLength}, segmentsToAdd: ${player.segmentsToAdd}, hasMoved: ${hasMoved}`);
-
+    
         snakeBody.unshift(newHeadPosition);
         console.log(`Server [UPDATE BODY]: Player ${playerId} - After Unshift - Body Length: ${snakeBody.length}`);
-
+    
         const segmentsToRemove = player.segmentsToAdd || 0;
-
+    
         if (segmentsToRemove > 0) {
             const newTargetLength = snakeBody.length + segmentsToRemove;
             player.currentLength += segmentsToRemove;
@@ -309,11 +307,9 @@ io.on('connection', (socket) => {
                 snakeBody.pop();
                 console.log(`Server [UPDATE BODY]: Player ${playerId} - Growing - Popped tail, new Body Length: ${snakeBody.length}`);
             }
-        } else if (hasMoved && snakeBody.length > player.currentLength) {
+        } else if (snakeBody.length > player.currentLength) { // Always remove tail if too long
             snakeBody.pop();
-            console.log(`Server [UPDATE BODY]: Player ${playerId} - Moving - Popped tail, new Body Length: ${snakeBody.length}`);
-        } else if (!hasMoved && snakeBody.length > player.currentLength) {
-            console.log(`Server [UPDATE BODY]: Player ${playerId} - Not Moving but longer - Body Length: ${snakeBody.length}, currentLength: ${player.currentLength} - SHOULD POP?`);
+            console.log(`Server [UPDATE BODY]: Player ${playerId} - Maintaining Length - Popped tail, new Body Length: ${snakeBody.length}`);
         } else {
             console.log(`Server [UPDATE BODY]: Player ${playerId} - No Pop - Body Length: ${snakeBody.length}, currentLength: ${player.currentLength}, hasMoved: ${hasMoved}`);
         }
