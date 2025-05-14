@@ -296,23 +296,21 @@ io.on('connection', (socket) => {
         snakeBody.unshift(newHeadPosition);
         console.log(`Server [UPDATE BODY]: Player ${playerId} - After Unshift - Body Length: ${snakeBody.length}`);
     
-        const segmentsToRemove = player.segmentsToAdd || 0;
-    
-        if (segmentsToRemove > 0) {
-            const newTargetLength = snakeBody.length + segmentsToRemove;
-            player.currentLength += segmentsToRemove;
-            player.segmentsToAdd = 0;
-            console.log(`Server [UPDATE BODY]: Player ${playerId} - Growing - newTargetLength: ${newTargetLength}, currentLength updated to: ${player.currentLength}`);
-            while (snakeBody.length > player.currentLength) {
-                snakeBody.pop();
-                console.log(`Server [UPDATE BODY]: Player ${playerId} - Growing - Popped tail, new Body Length: ${snakeBody.length}`);
-            }
-        } else if (snakeBody.length > player.currentLength) { // Always remove tail if too long
-            snakeBody.pop();
-            console.log(`Server [UPDATE BODY]: Player ${playerId} - Maintaining Length - Popped tail, new Body Length: ${snakeBody.length}`);
-        } else {
-            console.log(`Server [UPDATE BODY]: Player ${playerId} - No Pop - Body Length: ${snakeBody.length}, currentLength: ${player.currentLength}, hasMoved: ${hasMoved}`);
+        // Smooth out body movement
+        const catchUpFactor = 0.3; // Adjust this value (0 to 1) for smoother/tighter following
+        for (let i = 1; i < snakeBody.length; i++) {
+            const previous = snakeBody[i - 1];
+            const current = snakeBody[i];
+            current.x += (previous.x - current.x) * catchUpFactor;
+            current.y += (previous.y - current.y) * catchUpFactor;
         }
+    
+        const targetLength = player.currentLength;
+        while (snakeBody.length > targetLength) {
+            snakeBody.pop();
+            console.log(`Server [UPDATE BODY]: Player ${playerId} - Maintaining/Growing - Popped tail, new Body Length: ${snakeBody.length}, Target Length: ${targetLength}`);
+        }
+    
         console.log(`Server [UPDATE BODY]: Player ${playerId} - After Update - Body Length: ${snakeBody.length}, currentLength: ${player.currentLength}, segmentsToAdd: ${player.segmentsToAdd}`);
     }
     // Chat Message Handling
