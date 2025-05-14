@@ -296,15 +296,6 @@ io.on('connection', (socket) => {
         snakeBody.unshift(newHeadPosition);
         console.log(`Server [UPDATE BODY]: Player ${playerId} - After Unshift - Body Length: ${snakeBody.length}`);
     
-        // Smooth out body movement
-        const catchUpFactor = 0.3; // Adjust this value (0 to 1) for smoother/tighter following
-        for (let i = 1; i < snakeBody.length; i++) {
-            const previous = snakeBody[i - 1];
-            const current = snakeBody[i];
-            current.x += (previous.x - current.x) * catchUpFactor;
-            current.y += (previous.y - current.y) * catchUpFactor;
-        }
-    
         const targetLength = player.currentLength;
         while (snakeBody.length > targetLength) {
             snakeBody.pop();
@@ -312,7 +303,7 @@ io.on('connection', (socket) => {
         }
     
         console.log(`Server [UPDATE BODY]: Player ${playerId} - After Update - Body Length: ${snakeBody.length}, currentLength: ${player.currentLength}, segmentsToAdd: ${player.segmentsToAdd}`);
-    }    
+    }   
     // Chat Message Handling
     socket.on('chat message', (data) => {
         console.log('Server: Received chat message:', data, 'from:', socket.id);
