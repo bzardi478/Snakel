@@ -217,26 +217,25 @@ io.on('connection', (socket) => {
 
     socket.on('move', (movement) => {
         const currentTime = Date.now();
-        if (currentTime - lastMoveUpdate > 50) { // Update every 50ms (~20 FPS)
+        const player = gameState.players.get(socket.id);
+        if (player && currentTime - lastMoveUpdate > 50) {
             lastMoveUpdate = currentTime;
-            const player = gameState.players.get(socket.id);
-            if (player) {
-                const newHeadPosition = { x: movement.x, y: movement.y };
-                const hasMoved = player.position ? (player.position.x !== newHeadPosition.x || player.position.y !== newHeadPosition.y) : true; // Consider it moved if it's the first move
-
-                console.log(`Server [MOVE]: Player ${player.id} - New Head:`, newHeadPosition, 'Previous Position:', player.position, 'hasMoved:', hasMoved, 'Current Speed:', player.speed);
-
-                player.position = newHeadPosition; // Update player position FIRST
-
-                updatePlayerSnakeBody(socket.id, newHeadPosition, hasMoved); // Pass the hasMoved flag
-
-                const snakeBody = getPlayerSnakeBody(socket.id);
-                console.log(`Server [MOVE]: Player ${player.id} - Snake Body Length:`, snakeBody ? snakeBody.length : 0, 'Current Length Target:', player.currentLength, 'Segments To Add:', player.segmentsToAdd);
-                io.emit('playerMoved', {
+            const newHeadPosition = { x: movement.x, y: movement.y };
+            const hasMoved = player.position ? (player.position.x !== newHeadPosition.x || player.position.y !== newHeadPosition.y) : true;
+    
+            player.position = newHeadPosition;
+            const newSnakeHead = updatePlayerSnakeBody(socket.id, newHeadPosition, hasMoved);
+    
+            if (newSnakeHead) {
+                const tailRemoved = playerSnakes.get(socket.id).length > player.currentLength;
+                socket.emit('playerMoved', { // Emit only to the moving player
+                    head: newSnakeHead,
+                    tailRemoved: tailRemoved ? playerSnakes.get(socket.id)[playerSnakes.get(socket.id).length - 1] : null, // Send the removed tail position
                     playerId: player.id,
-                    snakeBody: snakeBody,
-                    speed: player.speed // Send the current speed to the client
+                    speed: player.speed
                 });
+                // Optionally, broadcast the head position to other players (without the full body)
+                io.to(socket.id).emit('otherPlayerMoved', { playerId: player.id, position: newHeadPosition });
             }
         }
     });
@@ -286,24 +285,15 @@ io.on('connection', (socket) => {
         const snakeBody = playerSnakes.get(playerId);
         const player = gameState.players.get(playerId);
     
-        if (!snakeBody || !player) {
-            console.log(`Server [UPDATE BODY]: Player ${playerId} - Snake or Player data missing.`);
-            return;
-        }
-    
-        console.log(`Server [UPDATE BODY]: Player ${playerId} - Before Update - Body Length: ${snakeBody.length}, currentLength: ${player.currentLength}, segmentsToAdd: ${player.segmentsToAdd}, hasMoved: ${hasMoved}`);
+        if (!snakeBody || !player) return null;
     
         snakeBody.unshift(newHeadPosition);
-        console.log(`Server [UPDATE BODY]: Player ${playerId} - After Unshift - Body Length: ${snakeBody.length}`);
-    
         const targetLength = player.currentLength;
         while (snakeBody.length > targetLength) {
             snakeBody.pop();
-            console.log(`Server [UPDATE BODY]: Player ${playerId} - Maintaining/Growing - Popped tail, new Body Length: ${snakeBody.length}, Target Length: ${targetLength}`);
         }
-    
-        console.log(`Server [UPDATE BODY]: Player ${playerId} - After Update - Body Length: ${snakeBody.length}, currentLength: ${player.currentLength}, segmentsToAdd: ${player.segmentsToAdd}`);
-    }   
+        return newHeadPosition; // Return the new head position
+    }  
     // Chat Message Handling
     socket.on('chat message', (data) => {
         console.log('Server: Received chat message:', data, 'from:', socket.id);
