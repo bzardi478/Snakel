@@ -32,7 +32,7 @@ const io = new Server(httpServer, {
 let firebaseAdminInstance = null;
 let firebaseAuthService = null;
 
-const MAX_SNAKE_LENGTH = 200;
+const MAX_SNAKE_LENGTH = 3000;
 const playerSnakeHeads = new Map();
 async function initializeAdmin() {
     const serviceAccountEnv = process.env.FIREBASE_SERVICE_ACCOUNT;
