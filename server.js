@@ -155,7 +155,7 @@ io.on('connection', (socket) => {
         try {
             const playerId = `player_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
             const initialPosition = { x: 400, y: 300 };
-            const initialLength = 2; // Define initialLength here
+            const initialLength = 5; // Define initialLength here
             const initialSpeed = 5; // Initial speed
             const player = {
                 id: playerId,
@@ -169,19 +169,29 @@ io.on('connection', (socket) => {
                 currentLength: initialLength,
                 speed: initialSpeed // Add speed to the player object
             };
-
+    
             gameState.players.set(socket.id, player);
-            playerSnakes.set(socket.id, new Array(MAX_SNAKE_LENGTH).fill(null));  
-            playerSnakeHeads.set(socket.id, -1);
+    
+            // Initialize playerSnakes with the initial body
+            const initialSnakeBody = [];
+            for (let i = 0; i < initialLength; i++) {
+                // Adjust the position of each segment based on the head
+                // For a simple initial snake, they could be positioned behind the head.
+                initialSnakeBody.push({ x: initialPosition.x - i * 20, y: initialPosition.y }); // Example
+            }
+            playerSnakes.set(socket.id, initialSnakeBody);
+            playerSnakeHeads.set(socket.id, initialLength - 1); // Head is the last segment
+    
             console.log('Server: playerSnakes after startGameRequest:', playerSnakes); // DEBUG
-
+    
             socket.emit('playerRegistered', { playerId });
-
+    
             if (player && player.position) {
                 console.log('Server: Emitting initialSnake:', getPlayerSnakeBody(socket.id)); // DEBUG
                 socket.emit('initialGameState', {
                     initialFood: gameState.foods,
                     initialHead: initialPosition,
+                    initialSnake: initialSnakeBody, // Send the initial body
                     otherPlayers: Array.from(gameState.players.values()).map(p => ({
                         id: p.id,
                         position: p.position,
@@ -192,6 +202,7 @@ io.on('connection', (socket) => {
                 console.log('Server: Sent initialGameState:', {
                     initialFood: gameState.foods,
                     initialHead: initialPosition,
+                    initialSnake: initialSnakeBody,
                     otherPlayers: Array.from(gameState.players.values()).map(p => ({
                         id: p.id,
                         position: p.position,
@@ -202,7 +213,7 @@ io.on('connection', (socket) => {
             } else {
                 console.error('Error: Player or player.position is undefined!');
             }
-
+    
             console.log('Server: Emitting newPlayer event:', {
                 id: player.id,
                 position: player.position,
@@ -210,7 +221,7 @@ io.on('connection', (socket) => {
                 skinId: player.skinId
             });
             io.emit('newPlayer', { id: player.id, position: player.position, name: player.name, skinId: player.skinId });
-
+    
         } catch (error) {
             console.error('Server: startGameRequest error:', error);
             socket.emit('registrationFailed', { error: error.message });
