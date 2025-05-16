@@ -256,41 +256,40 @@ io.on('connection', (socket) => {
     socket.on('collectFood', (foodId) => {
         const player = gameState.players.get(socket.id);
         if (!player) return;
-
-        if (!player.recentlyCollectedFood) {
-            player.recentlyCollectedFood = new Set();
-            setTimeout(() => {
-                player.recentlyCollectedFood = null;
-            }, 500);
-        }
-
-        if (!player.recentlyCollectedFood.has(foodId)) {
-            player.recentlyCollectedFood.add(foodId);
+    
+        const foodIndex = gameState.foods.findIndex(food => food.id === foodId);
+    
+        if (foodIndex !== -1) {
+            const collectedFood = gameState.foods.splice(foodIndex, 1)[0]; // Remove food
+    
             player.score += 10;
             const lengthGain = 1;
             player.currentLength += lengthGain;
             player.segmentsToAdd = (player.segmentsToAdd || 0) + lengthGain;
-
-            // Adjust speed based on currentLength (example formula)
-            player.speed = Math.max(1, 5 - (player.currentLength / 10)); // Adjust the divisor for more/less speed change
-
-            const initialFoodLength = gameState.foods.length;
-            gameState.foods = gameState.foods.filter(food => food.id !== foodId);
-            const foodRemoved = gameState.foods.length < initialFoodLength;
-
-            if (foodRemoved && gameState.foods.length < 20) {
+            player.speed = Math.max(1, 5 - (player.currentLength / 10));
+    
+            // Emit success to the collecting client
+            socket.emit('foodCollected', { success: true, foodId: collectedFood.id });
+    
+            // Tell the client to grow
+            socket.emit('growSnake');
+    
+            // Broadcast food update to all clients (including the collector)
+            io.emit('foodUpdate', { removed: [collectedFood.id] });
+    
+            // Spawn new food if needed
+            if (gameState.foods.length < 20) {
                 const newFood = {
                     x: Math.floor(Math.random() * 1000),
                     y: Math.floor(Math.random() * 800),
                     id: `food_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
                 };
                 gameState.foods.push(newFood);
-                io.emit('foodUpdate', { removed: [foodId], added: [newFood] });
-            } else if (foodRemoved) {
-                io.emit('foodUpdate', { removed: [foodId] });
+                io.emit('foodUpdate', { added: [newFood] });
             }
-
-            socket.emit('growSnake');
+        } else {
+            // Food not found
+            socket.emit('foodCollected', { success: false, foodId: foodId, message: 'Food not found' });
         }
     });
 
