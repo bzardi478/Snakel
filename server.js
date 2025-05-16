@@ -155,7 +155,7 @@ io.on('connection', (socket) => {
         try {
             const playerId = `player_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
             const initialPosition = { x: 400, y: 300 };
-            const initialLength = 5; // Define initialLength here
+            const initialLength = 2; // Define initialLength here
             const initialSpeed = 5; // Initial speed
             const player = {
                 id: playerId,
