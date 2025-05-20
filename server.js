@@ -173,11 +173,9 @@ io.on('connection', (socket) => {
             gameState.players.set(socket.id, player);
     
             // Initialize playerSnakes with the initial body
-            const initialSnakeBody = [];
+            const initialSnakeBody = new Array(MAX_SNAKE_LENGTH).fill(null);
             for (let i = 0; i < initialLength; i++) {
-                // Adjust the position of each segment based on the head
-                // For a simple initial snake, they could be positioned behind the head.
-                initialSnakeBody.push({ x: initialPosition.x - i * 20, y: initialPosition.y }); // Example
+                initialSnakeBody[i] = { x: initialPosition.x - i * 20, y: initialPosition.y };
             }
             playerSnakes.set(socket.id, initialSnakeBody);
             playerSnakeHeads.set(socket.id, initialLength - 1); // Head is the last segment
@@ -275,7 +273,7 @@ io.on('connection', (socket) => {
     
             player.score += 10;
             const lengthGain = 1;
-            player.currentLength += lengthGain;
+            player.currentLength = Math.min(player.currentLength + lengthGain, MAX_SNAKE_LENGTH);
             player.segmentsToAdd = (player.segmentsToAdd || 0) + lengthGain;
             player.speed = Math.max(1, 5 - (player.currentLength / 10));
     
