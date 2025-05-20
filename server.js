@@ -47,9 +47,21 @@ async function initializeAdmin() {
             });
             firebaseAdminInstance = app;
             firebaseAuthService = admin.auth(app);
+
+            // --- ADD THESE DEBUG LOGS ---
+            console.log('Firebase Admin SDK initialized successfully.');
+            console.log('firebaseAdminInstance (app):', !!firebaseAdminInstance); // Should be true
+            console.log('firebaseAuthService:', !!firebaseAuthService);           // Should be true
+            if (firebaseAuthService) {
+                console.log('Type of firebaseAuthService:', typeof firebaseAuthService);
+                console.log('Does firebaseAuthService have sendEmailVerification?', typeof firebaseAuthService.sendEmailVerification === 'function');
+                console.log('Does firebaseAuthService have createUser?', typeof firebaseAuthService.createUser === 'function');
+            }
+            // --- END DEBUG LOGS ---
+
             return app;
         } catch (error) {
-            console.error('Error parsing FIREBASE_SERVICE_ACCOUNT:', error);
+            console.error('Error parsing FIREBASE_SERVICE_ACCOUNT or initializing Firebase Admin:', error);
             process.exit(1);
         }
     } else {
