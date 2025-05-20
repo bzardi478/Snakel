@@ -131,22 +131,26 @@ io.on('connection', (socket) => {
     });
 
     socket.on('login', async (loginData, callback) => {
-        console.log('Server: Received login request:', loginData);
+        console.log('Server: Received login request for:', loginData.username);
+        
+        // 1. Check if Firebase Auth service is initialized
         if (!firebaseAuthService) {
-            return callback({ success: false, message: 'Server error: Firebase Auth not initialized.' });
+            console.error('Server: Firebase Auth service not initialized.');
+            // Return an error to the client if Firebase Auth isn't ready
+            return callback({ success: false, message: 'Server error: Firebase authentication service not available.' });
         }
-        if (!auth.isValidEmail(loginData.username)) {
-            return callback({ success: false, message: 'Invalid email format.' });
-        }
-        try {
-            const userRecord = await firebaseAuthService.getUserByEmail(loginData.username);
-            console.log('Server: Login successful for user:', userRecord.uid);
-            // For now, we are skipping password verification and email verification
-            callback({ success: true, message: 'Login successful', userId: userRecord.uid });
-        } catch (error) {
-            console.error('Server: Error during login:', error);
-            callback({ success: false, message: 'Login failed', error: error.message });
-        }
+
+        // 2. Delegate the login logic to the auth.loginUser function
+        // This function in auth.js will handle:
+        //    - Email format validation
+        //    - Checking if the user exists in Firebase Auth
+        //    - Checking if the user's email is verified
+        // It will return a single result object (success/failure message, user ID, etc.)
+        const result = await auth.loginUser(firebaseAuthService, loginData.username);
+
+        // 3. Send the result back to the client
+        console.log('Server: Login result for', loginData.username, ':', result);
+        callback(result);
     });
 
     socket.on('startGameRequest', (data) => {
