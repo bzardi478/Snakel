@@ -32,7 +32,7 @@ const io = new Server(httpServer, {
 let firebaseAdminInstance = null;
 let firebaseAuthService = null;
 
-const MAX_SNAKE_LENGTH = 3000000;
+const MAX_SNAKE_LENGTH = 3000;
 const playerSnakeHeads = new Map();
 async function initializeAdmin() {
     const serviceAccountEnv = process.env.FIREBASE_SERVICE_ACCOUNT;
@@ -173,9 +173,11 @@ io.on('connection', (socket) => {
             gameState.players.set(socket.id, player);
     
             // Initialize playerSnakes with the initial body
-            const initialSnakeBody = new Array(MAX_SNAKE_LENGTH).fill(null);
+            const initialSnakeBody = [];
             for (let i = 0; i < initialLength; i++) {
-                initialSnakeBody[i] = { x: initialPosition.x - i * 20, y: initialPosition.y };
+                // Adjust the position of each segment based on the head
+                // For a simple initial snake, they could be positioned behind the head.
+                initialSnakeBody.push({ x: initialPosition.x - i * 20, y: initialPosition.y }); // Example
             }
             playerSnakes.set(socket.id, initialSnakeBody);
             playerSnakeHeads.set(socket.id, initialLength - 1); // Head is the last segment
@@ -273,7 +275,7 @@ io.on('connection', (socket) => {
     
             player.score += 10;
             const lengthGain = 1;
-            player.currentLength = Math.min(player.currentLength + lengthGain, MAX_SNAKE_LENGTH);
+            player.currentLength += lengthGain;
             player.segmentsToAdd = (player.segmentsToAdd || 0) + lengthGain;
             player.speed = Math.max(1, 5 - (player.currentLength / 10));
     
@@ -305,28 +307,35 @@ io.on('connection', (socket) => {
     function updatePlayerSnakeBody(playerId, newHeadPosition) {
         const snakeBuffer = playerSnakes.get(playerId);
         const player = gameState.players.get(playerId);
-
+    
         if (!snakeBuffer || !player) {
             console.log(`Server [UPDATE BODY]: Player ${playerId} - Snake or Player data missing.`);
             return;
         }
-
+    
+        // Initialize buffer if it doesn't exist
+        if (!Array.isArray(snakeBuffer)) {
+            playerSnakes.set(playerId, new Array(MAX_SNAKE_LENGTH).fill(null));
+            playerSnakeHeads.set(playerId, -1); // Initialize head index
+            return; // First update will populate
+        }
+    
         let headIndex = playerSnakeHeads.get(playerId);
         const newHeadIndex = (headIndex + 1) % MAX_SNAKE_LENGTH;
-
         snakeBuffer[newHeadIndex] = newHeadPosition;
         playerSnakeHeads.set(playerId, newHeadIndex);
-
-        // Grow logic — if we have segments to add, delay tail trimming
-        if (player.segmentsToAdd > 0) {
-            player.segmentsToAdd--;
-            // Don't remove the tail segment yet
-            return;
+    
+        // Ensure buffer doesn't grow indefinitely (though currentLength should control this)
+        let occupiedSlots = 0;
+        for (let i = 0; i < MAX_SNAKE_LENGTH; i++) {
+            if (snakeBuffer[i] !== null) {
+                occupiedSlots++;
+            }
         }
-
-        // Trim tail segment to maintain currentLength
-        const tailIndexToClear = (newHeadIndex - player.currentLength + MAX_SNAKE_LENGTH) % MAX_SNAKE_LENGTH;
-        snakeBuffer[tailIndexToClear] = null;
+        if (occupiedSlots > player.currentLength) {
+            const tailIndexToClear = (newHeadIndex - player.currentLength + MAX_SNAKE_LENGTH) % MAX_SNAKE_LENGTH;
+            snakeBuffer[tailIndexToClear] = null;
+        }
     }
     // Chat Message Handling
     socket.on('chat message', (data) => {
