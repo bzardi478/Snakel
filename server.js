@@ -133,27 +133,40 @@ io.on('connection', (socket) => {
     const defaultSkinId = 'green'; // Set a default skin ID
 
     // Authentication Event Listeners
-   socket.on('register', async (data, callback) => {
+    socket.on('register', async (data, callback) => {
         console.log('Server: Received registration request:', data);
-        if (!firebaseAuthService || !firebaseDatabaseService) { // Update check
+        // Ensure firebaseAuthService and firebaseDatabaseService are initialized
+        if (!firebaseAuthService || !firebaseDatabaseService || !auth) {
             console.error('Server: Firebase Admin SDK or Auth/Database service not initialized for registration.');
             return callback({ success: false, message: 'Server error: Firebase not initialized.' });
         }
-        // Call registerUser using the imported auth object
-        auth.registerUser(firebaseAuthService, firebaseDatabaseService, data.username, data.password, (result) => {
+        // **CHANGE THIS LINE:** Pass firebaseAuthService and firebaseDatabaseService
+        // Your auth.js also expects a callback, so retain that structure.
+        await auth.registerUser(firebaseAuthService, firebaseDatabaseService, data.username, data.password, (result) => {
             console.log('Server: Registration result:', result);
+            // Store userId if registration is successful
+            if (result.success && result.userId) { // Assuming auth.registerUser returns userId in result
+                socketToUserId.set(socket.id, result.userId);
+                userIdToSocket.set(result.userId, socket.id);
+            }
             callback(result);
         });
     });
 
     socket.on('login', async (loginData, callback) => {
         console.log('Server: Received login request for:', loginData.username);
-        if (!firebaseAuthService) {
-            console.error('Server: Firebase Auth service not initialized.');
+            if (!firebaseAuthService || !auth) {
+                console.error('Server: Firebase Auth service not initialized.');
             return callback({ success: false, message: 'Server error: Firebase authentication service not available.' });
         }
+        // **CHANGE THIS LINE:** Pass firebaseAuthService
         const result = await auth.loginUser(firebaseAuthService, loginData.username);
         console.log('Server: Login result for', loginData.username, ':', result);
+        // Store userId if login is successful
+        if (result.success && result.userId) { // Assuming auth.loginUser returns userId in result
+            socketToUserId.set(socket.id, result.userId);
+            userIdToSocket.set(result.userId, socket.id);
+        }
         callback(result);
     });
 
