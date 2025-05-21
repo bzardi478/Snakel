@@ -3,7 +3,6 @@ const express = require('express');
 const { createServer } = require('node:http');
 const { Server } = require('socket.io');
 const path = require('path');
-const auth = require('./auth');
 const admin = require('firebase-admin');
 
 const app = express();
@@ -47,15 +46,19 @@ async function initializeAdmin() {
             });
             firebaseAdminInstance = app;
             firebaseAuthService = admin.auth(app);
+            firebaseDatabaseService = admin.database(app); // Assign database service
 
-            // --- ADD THESE DEBUG LOGS ---
+            // --- DEBUG LOGS (KEEP THESE) ---
             console.log('Firebase Admin SDK initialized successfully.');
-            console.log('firebaseAdminInstance (app):', !!firebaseAdminInstance); // Should be true
-            console.log('firebaseAuthService:', !!firebaseAuthService);           // Should be true
+            console.log('firebaseAdminInstance (app):', !!firebaseAdminInstance);
+            console.log('firebaseAuthService:', !!firebaseAuthService);
+            console.log('firebaseDatabaseService:', !!firebaseDatabaseService); // New log
             if (firebaseAuthService) {
                 console.log('Type of firebaseAuthService:', typeof firebaseAuthService);
                 console.log('Does firebaseAuthService have sendEmailVerification?', typeof firebaseAuthService.sendEmailVerification === 'function');
                 console.log('Does firebaseAuthService have createUser?', typeof firebaseAuthService.createUser === 'function');
+            } else {
+                console.log('firebaseAuthService is NOT defined after admin.auth(app)');
             }
             // --- END DEBUG LOGS ---
 
@@ -130,13 +133,14 @@ io.on('connection', (socket) => {
     const defaultSkinId = 'green'; // Set a default skin ID
 
     // Authentication Event Listeners
-    socket.on('register', async (data, callback) => {
+   socket.on('register', async (data, callback) => {
         console.log('Server: Received registration request:', data);
-        if (!firebaseAdminInstance || !firebaseAuthService) {
-            console.error('Server: Firebase Admin SDK or Auth service not initialized for registration.');
+        if (!firebaseAuthService || !firebaseDatabaseService) { // Update check
+            console.error('Server: Firebase Admin SDK or Auth/Database service not initialized for registration.');
             return callback({ success: false, message: 'Server error: Firebase not initialized.' });
         }
-        auth.registerUser(firebaseAuthService, firebaseAdminInstance.database(), data.username, data.password, (result) => {
+        // Call registerUser using the imported auth object
+        auth.registerUser(firebaseAuthService, firebaseDatabaseService, data.username, data.password, (result) => {
             console.log('Server: Registration result:', result);
             callback(result);
         });
@@ -144,23 +148,11 @@ io.on('connection', (socket) => {
 
     socket.on('login', async (loginData, callback) => {
         console.log('Server: Received login request for:', loginData.username);
-        
-        // 1. Check if Firebase Auth service is initialized
         if (!firebaseAuthService) {
             console.error('Server: Firebase Auth service not initialized.');
-            // Return an error to the client if Firebase Auth isn't ready
             return callback({ success: false, message: 'Server error: Firebase authentication service not available.' });
         }
-
-        // 2. Delegate the login logic to the auth.loginUser function
-        // This function in auth.js will handle:
-        //    - Email format validation
-        //    - Checking if the user exists in Firebase Auth
-        //    - Checking if the user's email is verified
-        // It will return a single result object (success/failure message, user ID, etc.)
         const result = await auth.loginUser(firebaseAuthService, loginData.username);
-
-        // 3. Send the result back to the client
         console.log('Server: Login result for', loginData.username, ':', result);
         callback(result);
     });
@@ -406,15 +398,20 @@ setInterval(() => {
 
 // Server Startup (ONLY after Firebase Admin SDK is initialized)
 const PORT = process.env.PORT || 10000;
-async function startServer() {
+let auth; 
+async function startServer() { // This is the correct startServer declaration
     await initializeAdmin();
+    // Now that firebaseAuthService and firebaseDatabaseService are definitely set,
+    // we can initialize our auth module with them.
+    auth = require('./auth'); // <-- REQUIRE AUTH HERE (This should be done AFTER initializeAdmin)
+    
     httpServer.listen(PORT, '0.0.0.0', () => {
         console.log(`Server running on port ${PORT}`);
         console.log(`WebSocket endpoint: ws://localhost:${PORT}`);
     });
 }
-startServer();
 
+startServer();
 // Graceful Shutdown
 process.on('SIGTERM', () => {
     console.log('Shutting down gracefully...');
