@@ -1,7 +1,7 @@
 // auth.js (UPDATED PARTS ONLY)
 
 // const admin = require('firebase-admin'); // <--- REMOVE THIS LINE from the top of auth.js
-
+const { sendVerificationEmail } = require('./emailService');
 function isValidEmail(email) {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
@@ -50,9 +50,14 @@ async function registerUser(firebaseAuthService, firebaseDatabase, email, passwo
         // You now need to send this link to the user's email using a separate email sending service.
         // For demonstration, we'll just log it. You'll replace this with actual email sending.
 
-        // Placeholder for sending email:
-        // await sendVerificationEmail(email, verificationLink);
-        console.log(`Server (auth.js): Placeholder: If an email service was integrated, verification link would be sent to ${email}`);
+        const emailResult = await sendVerificationEmail(email, verificationLink); // <--- UNCOMMENT THIS LINE
+        if (!emailResult.success) {
+            console.error('Server (auth.js): Failed to send verification email:', emailResult.message);
+            // You might want to add error handling here if the email fails to send,
+            // e.g., rollback user creation or notify the client differently.
+        } else {
+            console.log('Server (auth.js): Verification email dispatched successfully.');
+}
 
         await firebaseDatabase.ref(`users/${userRecord.uid}`).set({
             email: email,
