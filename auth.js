@@ -40,7 +40,7 @@ async function registerUser(firebaseAuthService, firebaseDatabase, email, passwo
         // after the user clicks the verification link in their email.
         // MAKE SURE THIS URL IS CORRECT AND ACCESSIBLE!
         const actionCodeSettings = {
-            url: `https://snakel.onrender.com/verification-success.html`, // <-- IMPORTANT: Update this to your actual client URL
+            url: `https://snakel.firebaseapp.com/verification-success.html`, // <-- IMPORTANT: Update this to your actual client URL
             handleCodeInApp: false, // Set to true if you handle the link in a mobile app, false for web
         };
 
