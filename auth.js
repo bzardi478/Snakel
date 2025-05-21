@@ -14,25 +14,18 @@ async function registerUser(firebaseAuthService, firebaseDatabase, email, passwo
         return callback({ success: false, message: 'Password must be at least 6 characters long.' });
     }
 
-    // **********************************************
-    // ****** KEEP THESE DEBUG LOGS HERE ************
-    // **********************************************
     console.log('auth.js: DEBUG - Inside registerUser function.');
     console.log('auth.js: DEBUG - typeof firebaseAuthService:', typeof firebaseAuthService);
-    // You might need to adjust the String(firebaseAuthService).substring(0, 50) if it's not an object.
-    // Let's simplify to just check if it's an object.
     console.log('auth.js: DEBUG - firebaseAuthService is object:', typeof firebaseAuthService === 'object' && firebaseAuthService !== null);
     if (firebaseAuthService) {
-        console.log('auth.js: DEBUG - Does firebaseAuthService have sendEmailVerification method?', typeof firebaseAuthService.sendEmailVerification === 'function');
+        // We now know sendEmailVerification is false, so we change the check
+        console.log('auth.js: DEBUG - Does firebaseAuthService have generateEmailVerificationLink?', typeof firebaseAuthService.generateEmailVerificationLink === 'function');
         console.log('auth.js: DEBUG - Does firebaseAuthService have createUser method?', typeof firebaseAuthService.createUser === 'function');
     } else {
         console.log('auth.js: DEBUG - firebaseAuthService is null or undefined at this point (inside auth.js).');
     }
-    // **********************************************
-    // **********************************************
 
     try {
-        // This line should now work correctly if firebaseAuthService is indeed the Auth object
         const userRecord = await firebaseAuthService.createUser({
             email: email,
             password: password,
@@ -43,14 +36,23 @@ async function registerUser(firebaseAuthService, firebaseDatabase, email, passwo
         console.log('Server (auth.js): Successfully created new user:', userRecord.uid);
 
         const actionCodeSettings = {
-            url: `https://snakel.onrender.com/verification-success.html`, // <-- IMPORTANT: Update this
-            handleCodeInApp: false,
+            url: `https://snakel.onrender.com/verification-success.html`, // IMPORTANT: Ensure this is your actual client success URL
+            handleCodeInApp: false, // Set to true if you want to handle it in your client-side app directly (e.g. for mobile apps)
         };
 
-        // This is the line we're focusing on
-        await firebaseAuthService.sendEmailVerification(userRecord.uid, actionCodeSettings);
+        // ***************************************************************
+        // *** CHANGE THIS LINE ***
+        const verificationLink = await firebaseAuthService.generateEmailVerificationLink(email, actionCodeSettings);
+        console.log(`Server (auth.js): Generated email verification link for ${email}: ${verificationLink}`);
+        // ***************************************************************
 
-        console.log(`Server (auth.js): Sent email verification link to ${email}`);
+        // At this point, you have the `verificationLink`.
+        // You now need to send this link to the user's email using a separate email sending service.
+        // For demonstration, we'll just log it. You'll replace this with actual email sending.
+
+        // Placeholder for sending email:
+        // await sendVerificationEmail(email, verificationLink);
+        console.log(`Server (auth.js): Placeholder: If an email service was integrated, verification link would be sent to ${email}`);
 
         await firebaseDatabase.ref(`users/${userRecord.uid}`).set({
             email: email,
@@ -73,6 +75,7 @@ async function registerUser(firebaseAuthService, firebaseDatabase, email, passwo
         callback({ success: false, message: errorMessage, error: error.code });
     }
 }
+
 
 // The loginUser function also needs to receive firebaseAuthService as an argument
 async function loginUser(firebaseAuthService, email) {
