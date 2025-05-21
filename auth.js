@@ -36,7 +36,7 @@ async function registerUser(firebaseAuthService, firebaseDatabase, email, passwo
         console.log('Server (auth.js): Successfully created new user:', userRecord.uid);
 
         const actionCodeSettings = {
-            url: `https://snakel.onrender.com/verification-success.html`, // IMPORTANT: Ensure this is your actual client success URL
+            url: `https://snakel.firebaseapp.com/verification-success.html`, // IMPORTANT: Ensure this is your actual client success URL
             handleCodeInApp: false, // Set to true if you want to handle it in your client-side app directly (e.g. for mobile apps)
         };
 
