@@ -30,6 +30,7 @@ const io = new Server(httpServer, {
 
 let firebaseAdminInstance = null;
 const socketToUserId = new Map();
+const userIdToSocket = new Map();
 let firebaseAuthService = null;
 
 const MAX_SNAKE_LENGTH = 3000;
