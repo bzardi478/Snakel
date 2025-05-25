@@ -108,7 +108,7 @@ async function initializeGeminiAI() {
 
         // Proceed to get the generative model, even if listModels had an issue,
         // as the core generation might still work.
-        geminiModel = geminiAI.getGenerativeModel({ model: "gemini-1.0-pro" });
+        geminiModel = geminiAI.getGenerativeModel({ model: "gemini-2.0-flash" });
         console.log('Google Gemini AI model "gemini-1.0-pro" retrieved successfully.');
     } catch (error) {
         console.error('Error initializing Google Gemini AI:', error);
