@@ -5,7 +5,6 @@ const { Server } = require('socket.io');
 const path = require('path');
 const admin = require('firebase-admin');
 
-// NEW: Import Google Generative AI library
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 const app = express();
@@ -33,12 +32,11 @@ const io = new Server(httpServer, {
 
 let firebaseAdminInstance = null;
 let firebaseAuthService = null;
-let firebaseDatabaseService = null; // Ensure this is defined
+let firebaseDatabaseService = null;
 
 const MAX_SNAKE_LENGTH = 3000;
 const playerSnakeHeads = new Map();
 
-// NEW: Initialize Google Generative AI
 let geminiAI = null;
 let geminiModel = null;
 
@@ -55,7 +53,7 @@ async function initializeAdmin() {
             });
             firebaseAdminInstance = app;
             firebaseAuthService = admin.auth(app);
-            firebaseDatabaseService = admin.database(app); // Assign database service
+            firebaseDatabaseService = admin.database(app);
 
             console.log('Firebase Admin SDK initialized successfully.');
             console.log('firebaseAdminInstance (app):', !!firebaseAdminInstance);
@@ -80,7 +78,6 @@ async function initializeAdmin() {
     }
 }
 
-// NEW: Initialize Gemini AI
 async function initializeGeminiAI() {
     const API_KEY = process.env.GEMINI_API_KEY;
     if (!API_KEY) {
@@ -89,9 +86,22 @@ async function initializeGeminiAI() {
     }
     try {
         geminiAI = new GoogleGenerativeAI(API_KEY);
-        // Use a suitable model, 'gemini-pro' is generally good for text
-        geminiModel = geminiAI.getGenerativeModel({ model: "gemini-pro" });
-        console.log('Google Gemini AI initialized successfully.');
+
+        // NEW: Log available models to help with debugging
+        console.log('Fetching available Gemini models...');
+        const models = await geminiAI.listModels();
+        for (const model of models.models) {
+            console.log(`Model: ${model.name}`);
+            console.log(`  DisplayName: ${model.displayName}`);
+            console.log(`  Description: ${model.description}`);
+            console.log(`  SupportedMethods: ${model.supportedGenerationMethods ? model.supportedGenerationMethods.join(', ') : 'None'}`);
+            console.log('---');
+        }
+        console.log('Finished listing models.');
+
+        // Changed model name to a more explicit version which is commonly supported
+        geminiModel = geminiAI.getGenerativeModel({ model: "gemini-1.0-pro" });
+        console.log('Google Gemini AI initialized successfully with model: gemini-1.0-pro.');
     } catch (error) {
         console.error('Error initializing Google Gemini AI:', error);
     }
@@ -142,7 +152,7 @@ const playerSnakes = new Map();
 
 // Function to initialize a new snake body
 function initializeSnake(initialPosition) {
-    return [initialPosition]; // Start with a single segment
+    return [initialPosition];
 }
 
 // Function to get the snake body for a player
@@ -154,17 +164,14 @@ function getPlayerSnakeBody(playerId) {
 io.on('connection', (socket) => {
     console.log(`Server: Client connected: ${socket.id}`);
 
-    // SKIN HANDLING - Default Skin
-    const defaultSkinId = 'green'; // Set a default skin ID
+    const defaultSkinId = 'green';
 
-    // Authentication Event Listeners
     socket.on('register', async (data, callback) => {
         console.log('Server: Received registration request:', data);
         if (!firebaseAuthService || !firebaseDatabaseService) {
             console.error('Server: Firebase Admin SDK or Auth/Database service not initialized for registration.');
             return callback({ success: false, message: 'Server error: Firebase not initialized.' });
         }
-        // Call registerUser using the imported auth object
         auth.registerUser(firebaseAuthService, firebaseDatabaseService, data.username, data.password, (result) => {
             console.log('Server: Registration result:', result);
             callback(result);
@@ -188,8 +195,8 @@ io.on('connection', (socket) => {
         try {
             const playerId = `player_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
             const initialPosition = { x: 400, y: 300 };
-            const initialLength = 5; // Define initialLength here
-            const initialSpeed = 5; // Initial speed
+            const initialLength = 5;
+            const initialSpeed = 5;
             const player = {
                 id: playerId,
                 position: initialPosition,
@@ -200,30 +207,28 @@ io.on('connection', (socket) => {
                 skinId: defaultSkinId,
                 initialLength: initialLength,
                 currentLength: initialLength,
-                speed: initialSpeed // Add speed to the player object
+                speed: initialSpeed
             };
             
             gameState.players.set(socket.id, player);
             
-            // Initialize playerSnakes with the initial body
             const initialSnakeBody = [];
             for (let i = 0; i < initialLength; i++) {
-                // Adjust the position of each segment based on the head
-                initialSnakeBody.push({ x: initialPosition.x - i * 20, y: initialPosition.y }); // Example
+                initialSnakeBody.push({ x: initialPosition.x - i * 20, y: initialPosition.y });
             }
             playerSnakes.set(socket.id, initialSnakeBody);
-            playerSnakeHeads.set(socket.id, initialLength - 1); // Head is the last segment
+            playerSnakeHeads.set(socket.id, initialLength - 1);
             
-            console.log('Server: playerSnakes after startGameRequest:', playerSnakes); // DEBUG
+            console.log('Server: playerSnakes after startGameRequest:', playerSnakes);
             
             socket.emit('playerRegistered', { playerId });
             
             if (player && player.position) {
-                console.log('Server: Emitting initialSnake:', getPlayerSnakeBody(socket.id)); // DEBUG
+                console.log('Server: Emitting initialSnake:', getPlayerSnakeBody(socket.id));
                 socket.emit('initialGameState', {
                     initialFood: gameState.foods,
                     initialHead: initialPosition,
-                    initialSnake: initialSnakeBody, // Send the initial body
+                    initialSnake: initialSnakeBody,
                     otherPlayers: Array.from(gameState.players.values()).map(p => ({
                         id: p.id,
                         position: p.position,
@@ -241,7 +246,7 @@ io.on('connection', (socket) => {
                         name: p.name,
                         skinId: p.skinId
                     }))
-                }); // DEBUG
+                });
             } else {
                 console.error('Error: Player or player.position is undefined!');
             }
@@ -265,13 +270,13 @@ io.on('connection', (socket) => {
         const player = gameState.players.get(socket.id);
         
         if (player) {
-            const updateInterval = Math.max(50, 200 - player.currentLength * 5); // Dynamic update interval
+            const updateInterval = Math.max(50, 200 - player.currentLength * 5);
             
             if (!player.lastMoveTime || currentTime - player.lastMoveTime > updateInterval) {
                 player.lastMoveTime = currentTime;
                 const newHeadPosition = { x: movement.x, y: movement.y };
                 const previousHeadPosition = player.position;
-                player.position = newHeadPosition; // Update player's head position
+                player.position = newHeadPosition;
                 
                 if (previousHeadPosition) {
                     const delta = {
@@ -280,15 +285,13 @@ io.on('connection', (socket) => {
                         dy: newHeadPosition.y - previousHeadPosition.y,
                         speed: player.speed
                     };
-                    socket.emit('playerMoved', delta); // Send delta to the moving player
-                    socket.broadcast.emit('otherPlayerMoved', { playerId: player.id, head: newHeadPosition, speed: player.speed }); // Send head position to others
+                    socket.emit('playerMoved', delta);
+                    socket.broadcast.emit('otherPlayerMoved', { playerId: player.id, head: newHeadPosition, speed: player.speed });
                 } else {
-                    // Initial move - send the head position
                     socket.emit('playerMoved', { head: newHeadPosition, speed: player.speed });
                     socket.broadcast.emit('otherPlayerMoved', { playerId: player.id, head: newHeadPosition, speed: player.speed });
                 }
                 
-                // Update the server-side snake body (we'll refine this later for the circular buffer)
                 updatePlayerSnakeBody(socket.id, newHeadPosition);
             }
         }
@@ -301,7 +304,7 @@ io.on('connection', (socket) => {
         const foodIndex = gameState.foods.findIndex(food => food.id === foodId);
         
         if (foodIndex !== -1) {
-            const collectedFood = gameState.foods.splice(foodIndex, 1)[0]; // Remove food
+            const collectedFood = gameState.foods.splice(foodIndex, 1)[0];
             
             player.score += 10;
             const lengthGain = 1;
@@ -309,16 +312,12 @@ io.on('connection', (socket) => {
             player.segmentsToAdd = (player.segmentsToAdd || 0) + lengthGain;
             player.speed = Math.max(1, 5 - (player.currentLength / 10));
             
-            // Emit success to the collecting client
             socket.emit('foodCollected', { success: true, foodId: collectedFood.id });
             
-            // Tell the client to grow
             socket.emit('growSnake');
             
-            // Broadcast food update to all clients (including the collector)
             io.emit('foodUpdate', { removed: [collectedFood.id] });
             
-            // Spawn new food if needed
             if (gameState.foods.length < 20) {
                 const newFood = {
                     x: Math.floor(Math.random() * 1000),
@@ -329,7 +328,6 @@ io.on('connection', (socket) => {
                 io.emit('foodUpdate', { added: [newFood] });
             }
         } else {
-            // Food not found
             socket.emit('foodCollected', { success: false, foodId: foodId, message: 'Food not found' });
         }
     });
@@ -343,11 +341,10 @@ io.on('connection', (socket) => {
             return;
         }
         
-        // Initialize buffer if it doesn't exist
         if (!Array.isArray(snakeBuffer)) {
             playerSnakes.set(playerId, new Array(MAX_SNAKE_LENGTH).fill(null));
-            playerSnakeHeads.set(playerId, -1); // Initialize head index
-            return; // First update will populate
+            playerSnakeHeads.set(playerId, -1);
+            return;
         }
         
         let headIndex = playerSnakeHeads.get(playerId);
@@ -355,7 +352,6 @@ io.on('connection', (socket) => {
         snakeBuffer[newHeadIndex] = newHeadPosition;
         playerSnakeHeads.set(playerId, newHeadIndex);
         
-        // Ensure buffer doesn't grow indefinitely (though currentLength should control this)
         let occupiedSlots = 0;
         for (let i = 0; i < MAX_SNAKE_LENGTH; i++) {
             if (snakeBuffer[i] !== null) {
@@ -367,7 +363,6 @@ io.on('connection', (socket) => {
             snakeBuffer[tailIndexToClear] = null;
         }
     }
-    // Chat Message Handling
     socket.on('chat message', (data) => {
         console.log('Server: Received chat message:', data, 'from:', socket.id);
         io.emit('chat message', data);
@@ -378,7 +373,7 @@ io.on('connection', (socket) => {
         const player = gameState.players.get(socket.id);
         if (player && data.skinId) {
             player.skinId = data.skinId;
-            io.emit('playerSkinUpdated', { playerId: player.id, skinId: player.skinId }); // Broadcast skin update
+            io.emit('playerSkinUpdated', { playerId: player.id, skinId: player.skinId });
         }
     });
 
@@ -386,32 +381,24 @@ io.on('connection', (socket) => {
         socket.emit('pong');
     });
 
-    // NEW: Handle AI chat messages from the client
     socket.on('askAI', async (data) => {
         const userMessage = data.message;
         console.log(`Server: Received AI query from ${socket.id}: "${userMessage}"`);
 
         if (!geminiModel) {
-            const errorMessage = "AI model not initialized. Please ensure GEMINI_API_KEY is set.";
+            const errorMessage = "AI model not initialized. Please ensure GEMINI_API_KEY is set and try restarting the server.";
             console.error(`Server: ${errorMessage}`);
-            socket.emit('aiResponse', { response: "Sorry, my AI brain is not online right now. Please try again later!" });
+            socket.emit('aiResponse', { response: "Sorry, my AI brain is not online right now. Please ensure the API key is set and the model is initialized correctly." });
             return;
         }
 
         try {
-            // Start a new chat session for each interaction for simplicity, or manage per-user sessions
             const chat = geminiModel.startChat({
-                // You can add history here if you want multi-turn conversations
-                // history: [
-                //   { role: "user", parts: "Hello" },
-                //   { role: "model", parts: "Hi there!" },
-                // ],
                 generationConfig: {
-                    maxOutputTokens: 100, // Limit response length to prevent excessive tokens
+                    maxOutputTokens: 100,
                 },
             });
 
-            // You can add a system instruction to guide the AI's persona
             const result = await chat.sendMessage(`You are SnakelAI, a helpful AI assistant for the Snakel game. Your primary purpose is to answer questions related to the game Snakel. Keep your answers concise and game-focused. If a question is not about Snakel, politely redirect.
 
 User: ${userMessage}`);
@@ -428,47 +415,41 @@ User: ${userMessage}`);
         }
     });
 
-    // Disconnection Handling
     socket.on('disconnect', () => {
         const player = gameState.players.get(socket.id);
         if (player) {
             gameState.players.delete(socket.id);
             console.log('Server: Emitting playerDisconnected event:', player.id);
             io.emit('playerDisconnected', player.id);
-            playerSnakes.delete(socket.id); // Clean up snake data
+            playerSnakes.delete(socket.id);
             console.log(`Server: Player disconnected: ${player.id}`);
         }
     });
 
-    // Error Handling
     socket.on('error', (error) => {
         console.error(`Server: Socket error (${socket.id}):`, error);
     });
 });
 
-// Periodic Cleanup
 setInterval(() => {
     const now = Date.now();
     const inactivePlayers = Array.from(gameState.players.entries())
-        .filter(([_, player]) => now - player.lastActive > 30000); // 30s inactivity
+        .filter(([_, player]) => now - player.lastActive > 30000);
 
     inactivePlayers.forEach(([socketId, player]) => {
         gameState.players.delete(socketId);
         io.emit('playerDisconnected', player.id);
         console.log(`Server: Removed inactive player: ${player.id}`);
     });
-}, 60000); // Run every minute
+}, 60000);
 
-// Server Startup (ONLY after Firebase Admin SDK and Gemini AI are initialized)
 const PORT = process.env.PORT || 10000;
 let auth;
 async function startServer() {
-    await initializeAdmin(); // Initialize Firebase
-    await initializeGeminiAI(); // NEW: Initialize Gemini AI
+    await initializeAdmin();
+    await initializeGeminiAI();
 
-    // Now that firebaseAuthService and firebaseDatabaseService are definitely set,
-    // we can initialize our auth module with them.
-    auth = require('./auth'); // REQUIRE AUTH HERE (This should be done AFTER initializeAdmin)
+    auth = require('./auth');
     
     httpServer.listen(PORT, '0.0.0.0', () => {
         console.log(`Server running on port ${PORT}`);
@@ -477,14 +458,11 @@ async function startServer() {
 }
 
 startServer();
-// Graceful Shutdown
 process.on('SIGTERM', () => {
     console.log('Shutting down gracefully...');
 
-    // Notify all clients
     io.emit('serverShutdown');
 
-    // Close connections
     io.close(() => {
         httpServer.close(() => {
             console.log('Server stopped');
