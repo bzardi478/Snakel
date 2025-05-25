@@ -104,8 +104,6 @@ async function initializeGeminiAI() {
             console.log('Finished listing models.');
         } else {
             console.error('CRITICAL ERROR: geminiAI.listModels is not a function after instantiation. Gemini AI initialization failed partially. Please check your @google/generative-ai package installation and version.');
-            // You might want to consider a `process.exit(1)` here if AI is critical,
-            // but for now, we'll let it proceed to retrieve the model.
         }
 
         // Proceed to get the generative model, even if listModels had an issue,
