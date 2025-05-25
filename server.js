@@ -84,24 +84,34 @@ async function initializeGeminiAI() {
         console.error('GEMINI_API_KEY environment variable is not set. AI chat will not function.');
         return;
     }
+    console.log('Attempting to initialize Google Generative AI...');
     try {
         geminiAI = new GoogleGenerativeAI(API_KEY);
+        // NEW DIAGNOSTIC LOGS:
+        console.log('geminiAI object after instantiation:', geminiAI); // Log the object itself
+        console.log(`Type of geminiAI: ${typeof geminiAI}`);
+        console.log(`Is geminiAI.listModels defined? ${geminiAI && typeof geminiAI.listModels !== 'undefined'}`);
+        console.log(`Type of geminiAI.listModels: ${typeof geminiAI.listModels}`);
 
-        // NEW: Log available models to help with debugging
-        console.log('Fetching available Gemini models...');
-        const models = await geminiAI.listModels();
-        for (const model of models.models) {
-            console.log(`Model: ${model.name}`);
-            console.log(`  DisplayName: ${model.displayName}`);
-            console.log(`  Description: ${model.description}`);
-            console.log(`  SupportedMethods: ${model.supportedGenerationMethods ? model.supportedGenerationMethods.join(', ') : 'None'}`);
-            console.log('---');
+        // Only proceed if listModels is actually a function
+        if (typeof geminiAI.listModels === 'function') {
+            console.log('Fetching available Gemini models...');
+            const models = await geminiAI.listModels();
+            // Simplified log for models to reduce output length
+            for (const model of models.models) {
+                console.log(`Model: ${model.name}, DisplayName: ${model.displayName}, SupportedMethods: ${model.supportedGenerationMethods ? model.supportedGenerationMethods.join(', ') : 'None'}`);
+            }
+            console.log('Finished listing models.');
+        } else {
+            console.error('CRITICAL ERROR: geminiAI.listModels is not a function after instantiation. Gemini AI initialization failed partially. Please check your @google/generative-ai package installation and version.');
+            // You might want to consider a `process.exit(1)` here if AI is critical,
+            // but for now, we'll let it proceed to retrieve the model.
         }
-        console.log('Finished listing models.');
 
-        // Changed model name to a more explicit version which is commonly supported
+        // Proceed to get the generative model, even if listModels had an issue,
+        // as the core generation might still work.
         geminiModel = geminiAI.getGenerativeModel({ model: "gemini-1.0-pro" });
-        console.log('Google Gemini AI initialized successfully with model: gemini-1.0-pro.');
+        console.log('Google Gemini AI model "gemini-1.0-pro" retrieved successfully.');
     } catch (error) {
         console.error('Error initializing Google Gemini AI:', error);
     }
