@@ -407,7 +407,7 @@ io.on('connection', (socket) => {
                 },
             });
 
-            const result = await chat.sendMessage(`You are SnakelAI, a helpful AI assistant for the Snakel game. Your primary purpose is to answer questions related to the game Snakel. Keep your answers concise and game-focused. If a question is not about Snakel, politely redirect.
+            const result = await chat.sendMessage(`You are SnakelAI, a helpful AI assistant for the Snakel game. Your primary purpose is to answer questions related to the game Snakel. Keep your answers concise and game-focused. If a question is not about Snakel, politely redirect. And You can answer other generic questions aswell
 
 User: ${userMessage}`);
 
